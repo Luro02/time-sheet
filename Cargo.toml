@@ -1,0 +1,37 @@
+[package]
+name = "time-sheet"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+# parsing stuff
+
+serde = { version = "1.0", features = ["derive", "rc"] }
+serde_json = "1.0"
+# serde-aux = "2.2"
+# serde_with = "1.11"
+
+# utility
+anyhow = "1.0"
+regex = { version = "1.5", features = ["pattern"] }
+thiserror = "1.0"
+derive_more = "0.99"
+tempfile = "3"
+rust-embed = "6.2"
+fs_extra = "1.2"
+v_latexescape = "0.13"
+# make backtraces beautiful
+color-backtrace = "0.5"
+
+# used for logging
+log = "0.4"
+pretty_env_logger = "0.4"
+
+# cli
+seahorse = "1.1"
+
+[dev-dependencies]
+pretty_assertions = "1.0"
+ctor = "0.1"
