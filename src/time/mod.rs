@@ -1,14 +1,9 @@
 use std::fmt;
 use std::time::Duration;
 
-// TODO: this or PrettyDuration?
+#[must_use]
 pub fn format_duration(duration: &Duration) -> String {
-    format!(
-        "{:02}:{:02}:{:02}",
-        duration.hours(),
-        duration.minutes(),
-        duration.seconds()
-    )
+    PrettyDuration::from(*duration).to_string()
 }
 
 pub const fn duration_from_hours(hours: u64) -> Duration {

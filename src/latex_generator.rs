@@ -6,9 +6,9 @@ use log::{debug, info};
 use tempfile::TempDir;
 
 use crate::files::{GlobalFile, MonthFile};
+use crate::input::Signature;
 use crate::tex_render::TexRender;
-use crate::utils;
-use crate::utils::Resources;
+use crate::utils::{self, Resources};
 
 #[must_use]
 fn inject_fix(lines: impl Iterator<Item = impl AsRef<str>>) -> String {
@@ -23,30 +23,6 @@ fn inject_fix(lines: impl Iterator<Item = impl AsRef<str>>) -> String {
     }
 
     result
-}
-
-#[derive(Debug, Clone, PartialEq)]
-pub struct Signature {
-    /// Path to a signature that will then be automatically added.
-    path: PathBuf,
-    /// The width of the signature in cm, by default `3.8cm`.
-    width: f32,
-    date: String,
-}
-
-impl Signature {
-    #[must_use]
-    pub fn new(date: impl Into<String>, path: impl Into<PathBuf>) -> Self {
-        Self {
-            path: path.into(),
-            width: 3.8,
-            date: date.into(),
-        }
-    }
-
-    pub fn date(&self) -> &str {
-        &self.date
-    }
 }
 
 pub struct LatexGenerator {
@@ -117,14 +93,14 @@ impl LatexGenerator {
 
         if let Some(signature) = &self.signature {
             let prefix = "\t%FOOTER\n\t\\par \\bigskip \\bigskip \\medskip\n";
-            let new_path = signature.path.file_name().unwrap();
+            let new_path = signature.path().file_name().unwrap();
             latex_file_content = latex_file_content.replace(
                 prefix,
                 &format!(
-                    "{}\t\\headentry{{\\hspace*{{\\fill}} {date}, \\includegraphics[width={width}cm]{{{signature}}} }} \\par \\medskip\n",
+                    "{}\t\\headentry{{\\hspace*{{\\fill}} {date}, \\includegraphics[width={width:.2}cm]{{{signature}}} }} \\par \\medskip\n",
                     prefix,
-                    date = signature.date(),
-                    width = signature.width,
+                    date = signature.date().formatted("{day}.{month}.{year}"),
+                    width = signature.width(),
                     signature = &new_path.to_string_lossy(),
                 ),
             );
@@ -149,11 +125,11 @@ impl LatexGenerator {
 
         // add the signature image, if it is present
         if let Some(signature) = &self.signature {
-            let new_path = signature.path.file_name().unwrap();
+            let new_path = signature.path().file_name().unwrap();
             renderer.add_asset_from_bytes(
                 //
                 new_path,
-                &fs::read(&signature.path)?,
+                &fs::read(signature.path())?,
             )?;
         }
 

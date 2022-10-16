@@ -120,9 +120,9 @@ impl From<usize> for Year {
     }
 }
 
-impl Into<usize> for Year {
-    fn into(self) -> usize {
-        self.as_usize()
+impl From<Year> for usize {
+    fn from(value: Year) -> Self {
+        value.as_usize()
     }
 }
 

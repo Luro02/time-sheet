@@ -623,7 +623,6 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "color-backtrace",
- "ctor",
  "derive_more",
  "fs_extra",
  "log",

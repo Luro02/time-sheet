@@ -20,7 +20,8 @@ pub struct InvalidDate {
 }
 
 impl Date {
-    pub fn new(year: Year, month: Month, day: usize) -> Result<Self, InvalidDate> {
+    pub fn new(year: impl Into<Year>, month: Month, day: usize) -> Result<Self, InvalidDate> {
+        let year = year.into();
         if year.number_of_days_in_month(month) < day || day == 0 {
             return Err(InvalidDate { year, month, day });
         }
@@ -55,6 +56,13 @@ impl Date {
         // https://github.com/kit-sdq/TimeSheetGenerator/blob/master/src/main/java/checker/holiday/GermanyHolidayChecker.java
         // https://www.dgb.de/gesetzliche-feiertage-deutschland-2020-2021#badenwuerttemberg
         // https://crates.io/crates/json_typegen/0.5.0
+    }
+
+    // TODO: might make this more powerful
+    pub fn formatted(&self, f: &str) -> String {
+        f.replace("{year}", &format!("{:04}", self.year()))
+            .replace("{month}", &format!("{:02}", self.month()))
+            .replace("{day}", &format!("{:02}", self.day()))
     }
 }
 
