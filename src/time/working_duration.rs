@@ -59,6 +59,15 @@ impl From<Duration> for WorkingDuration {
     }
 }
 
+impl Default for WorkingDuration {
+    fn default() -> Self {
+        Self {
+            hours: 0,
+            minutes: 0,
+        }
+    }
+}
+
 impl FromStr for WorkingDuration {
     type Err = anyhow::Error;
 

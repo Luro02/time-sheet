@@ -1,9 +1,11 @@
+use std::str::FromStr;
+
 use serde::{Deserialize, Serialize};
 
 use crate::latex_string::LatexString;
 use crate::time::WorkingDuration;
-use crate::utils;
 use crate::working_area::WorkingArea;
+use crate::{toml_input, utils};
 
 #[must_use]
 fn global_schema() -> String {
@@ -27,6 +29,25 @@ pub struct GlobalFile {
     working_area: WorkingArea,
     #[serde(skip_serializing)]
     signature: Option<LatexString>,
+}
+
+impl From<(toml_input::About, String, toml_input::Contract)> for GlobalFile {
+    fn from(
+        (about, department, contract): (toml_input::About, String, toml_input::Contract),
+    ) -> Self {
+        Self {
+            schema: global_schema(),
+            name: about.name().to_string(),
+            staff_id: about.staff_id(),
+            department,
+            working_time: contract.working_time().clone(),
+            wage: contract.wage().unwrap_or(12.00),
+            working_area: contract.area().clone(),
+            signature: contract
+                .bg_content()
+                .map(|s| LatexString::from_str(s).unwrap()),
+        }
+    }
 }
 
 impl GlobalFile {

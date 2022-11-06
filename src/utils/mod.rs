@@ -1,3 +1,4 @@
+use std::ffi::OsStr;
 use std::fs::{self, File};
 use std::io;
 use std::path::Path;
@@ -39,4 +40,20 @@ pub fn read_to_string(path: impl AsRef<Path>) -> io::Result<String> {
 pub fn write(path: impl AsRef<Path>, contents: impl AsRef<[u8]>) -> io::Result<()> {
     trace!("writing to: {}", path.as_ref().display());
     fs::write(path, contents)
+}
+
+pub trait PathExt {
+    #[must_use]
+    fn has_extension<E>(&self, extension: E) -> bool
+    where
+        for<'a> &'a OsStr: PartialEq<E>;
+}
+
+impl PathExt for Path {
+    fn has_extension<E>(&self, extension: E) -> bool
+    where
+        for<'a> &'a OsStr: PartialEq<E>,
+    {
+        self.extension().map_or(false, |ext| ext == extension)
+    }
 }

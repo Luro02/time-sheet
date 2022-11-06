@@ -4,6 +4,7 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 use crate::time::{self, TimeSpan, TimeStamp};
+use crate::toml_input::{self, Key};
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Entry {
@@ -15,6 +16,19 @@ pub struct Entry {
     pause: Option<TimeStamp>,
     #[serde(skip_serializing_if = "Option::is_none")]
     vacation: Option<bool>,
+}
+
+impl From<(Key, toml_input::Entry)> for Entry {
+    fn from((key, entry): (Key, toml_input::Entry)) -> Self {
+        Self {
+            action: entry.action().to_string(),
+            day: key.day(),
+            start: entry.start().clone(),
+            end: entry.end().clone(),
+            pause: entry.pause().cloned(),
+            vacation: Some(entry.is_vacation()),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Error)]

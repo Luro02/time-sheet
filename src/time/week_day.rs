@@ -12,6 +12,19 @@ pub enum WeekDay {
 }
 
 impl WeekDay {
+    #[must_use]
+    fn week_days() -> [Self; 7] {
+        [
+            Self::Monday,
+            Self::Tuesday,
+            Self::Wednesday,
+            Self::Thursday,
+            Self::Friday,
+            Self::Saturday,
+            Self::Sunday,
+        ]
+    }
+
     pub fn as_usize(&self) -> usize {
         *self as usize
     }
@@ -33,15 +46,9 @@ impl TryFrom<usize> for WeekDay {
     type Error = InvalidWeekDayNumber;
 
     fn try_from(value: usize) -> Result<Self, Self::Error> {
-        match value {
-            1 => Ok(Self::Monday),
-            2 => Ok(Self::Tuesday),
-            3 => Ok(Self::Wednesday),
-            4 => Ok(Self::Thursday),
-            5 => Ok(Self::Friday),
-            6 => Ok(Self::Saturday),
-            7 => Ok(Self::Sunday),
-            _ => Err(InvalidWeekDayNumber),
-        }
+        Self::week_days()
+            .into_iter()
+            .find(|v| *v as usize == value)
+            .ok_or(InvalidWeekDayNumber)
     }
 }

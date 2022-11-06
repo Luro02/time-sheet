@@ -2,7 +2,11 @@ use std::fs::File;
 use std::io::BufReader;
 use std::path::{Path, PathBuf};
 
+use anyhow::Context;
+
+use crate::input::toml_input;
 use crate::input::{GlobalFile, MonthFile, Signature};
+use crate::utils::PathExt;
 
 pub struct Config {
     month_file: MonthFile,
@@ -81,11 +85,62 @@ impl ConfigBuilder {
 
 impl Config {
     pub fn try_from_files(
+        month: impl AsRef<Path>,
+        global: impl AsRef<Path>,
+        department: impl Into<String>,
+    ) -> anyhow::Result<ConfigBuilder> {
+        let month = month.as_ref();
+        let global = global.as_ref();
+        let department = department.into();
+
+        if month.has_extension("json") && global.has_extension("json") {
+            Self::try_from_json_files(month, global)
+        } else if month.has_extension("toml") && global.has_extension("toml") {
+            Self::try_from_toml_files(month, global, department)
+        } else {
+            Err(anyhow::anyhow!(
+                "Unknown file extension, month: `{}`, global: `{}` (expected `.json` or `.toml`)",
+                month.display(),
+                global.display()
+            ))
+        }
+    }
+
+    pub fn try_from_json_files(
         input: impl AsRef<Path>,
         global: impl AsRef<Path>,
     ) -> anyhow::Result<ConfigBuilder> {
-        let month_file: MonthFile = serde_json::from_reader(BufReader::new(File::open(input)?))?;
-        let global_file: GlobalFile = serde_json::from_reader(BufReader::new(File::open(global)?))?;
+        let month_file: MonthFile =
+            serde_json::from_reader(BufReader::new(File::open(input.as_ref())?))
+                .with_context(|| format!("failed to parse `{}`", input.as_ref().display()))?;
+        let global_file: GlobalFile =
+            serde_json::from_reader(BufReader::new(File::open(global.as_ref())?))
+                .with_context(|| format!("failed to parse `{}`", global.as_ref().display()))?;
+
+        Ok(ConfigBuilder::new(month_file, global_file))
+    }
+
+    pub fn try_from_toml_files(
+        month: impl AsRef<Path>,
+        global: impl AsRef<Path>,
+        department: impl Into<String>,
+    ) -> anyhow::Result<ConfigBuilder> {
+        let month: toml_input::Month =
+            serde_json::from_reader(BufReader::new(File::open(month.as_ref())?))
+                .with_context(|| format!("failed to parse `{}`", month.as_ref().display()))?;
+        let global: toml_input::Global =
+            serde_json::from_reader(BufReader::new(File::open(global.as_ref())?))
+                .with_context(|| format!("failed to parse `{}`", global.as_ref().display()))?;
+
+        let department = department.into();
+        let about = global.about();
+        let contract = global
+            .contract(&department)
+            .ok_or_else(|| anyhow::anyhow!("no contract for department `{}`", department))?;
+        let working_duration = Some(contract.working_time().clone());
+
+        let month_file = MonthFile::from((working_duration, month));
+        let global_file = GlobalFile::from((about.clone(), department, contract.clone()));
 
         Ok(ConfigBuilder::new(month_file, global_file))
     }

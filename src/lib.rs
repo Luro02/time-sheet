@@ -6,6 +6,7 @@ mod latex_generator;
 mod latex_string;
 mod signature;
 mod tex_render;
+pub mod toml_input;
 mod utils;
 mod verifier;
 mod working_area;
@@ -16,6 +17,8 @@ pub mod input {
     pub use crate::config::*;
     pub use crate::files::*;
     pub use crate::signature::*;
+
+    pub use crate::toml_input;
 }
 
 use std::fs;

@@ -22,6 +22,20 @@ impl Signature {
     }
 
     #[must_use]
+    pub fn new_with_width(date: Date, path: impl Into<PathBuf>, width: f32) -> Self {
+        assert_ne!(width, f32::NAN);
+        assert_ne!(width, f32::INFINITY);
+        assert_ne!(width, f32::NEG_INFINITY);
+        assert!(width.is_sign_positive());
+
+        Self {
+            path: path.into(),
+            width,
+            date: date.into(),
+        }
+    }
+
+    #[must_use]
     pub fn date(&self) -> &Date {
         &self.date
     }

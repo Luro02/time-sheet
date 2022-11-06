@@ -4,6 +4,11 @@ use serde::{Deserialize, Serialize};
 
 use crate::files::Entry;
 use crate::time::{Date, Month, WorkingDuration, Year};
+use crate::toml_input;
+
+fn default_schema() -> &'static str {
+    "https://raw.githubusercontent.com/kit-sdq/TimeSheetGenerator/master/examples/schemas/month.json"
+}
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct MonthFile {
@@ -16,6 +21,29 @@ pub struct MonthFile {
     entries: Vec<Entry>,
     #[serde(skip_serializing)]
     working_time: Option<WorkingDuration>,
+}
+
+impl From<(Option<WorkingDuration>, toml_input::Month)> for MonthFile {
+    fn from((working_time, month): (Option<WorkingDuration>, toml_input::Month)) -> Self {
+        Self {
+            schema: default_schema().to_string(),
+            year: month.general().year(),
+            month: month.general().month(),
+            pred_transfer: month
+                .transfer()
+                .map(|t| t.previous_month().clone())
+                .unwrap_or_default(),
+            succ_transfer: month
+                .transfer()
+                .map(|t| t.next_month().clone())
+                .unwrap_or_default(),
+            entries: month
+                .entries()
+                .map(|(key, entry)| Entry::from((key.clone(), entry.clone())))
+                .collect(),
+            working_time,
+        }
+    }
 }
 
 impl MonthFile {
