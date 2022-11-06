@@ -1,31 +1,19 @@
 #![feature(never_type, step_trait, trait_alias, associated_type_defaults)]
 
-mod config;
-mod files;
 mod latex_generator;
 mod latex_string;
-mod signature;
 mod tex_render;
-pub mod toml_input;
 mod utils;
 mod verifier;
-mod working_area;
 
+pub mod input;
 pub mod time;
-
-pub mod input {
-    pub use crate::config::*;
-    pub use crate::files::*;
-    pub use crate::signature::*;
-
-    pub use crate::toml_input;
-}
 
 use std::fs;
 
 use log::{error, info};
 
-use crate::config::Config;
+use crate::input::Config;
 use crate::latex_generator::LatexGenerator;
 use crate::verifier::{DefaultVerifier, Verifier};
 
@@ -45,16 +33,7 @@ pub fn generate_time_sheet(config: &Config) -> anyhow::Result<()> {
 
     info!("generating time sheet from month and global files");
 
-    let mut generator = LatexGenerator::new(month_file.clone(), config.global_file().clone());
-
-    if let Some(signature) = config.signature() {
-        generator.signature(signature.clone());
-    }
-
-    if let Some(preserve_dir) = config.preserve_dir() {
-        fs::create_dir_all(preserve_dir)?;
-        generator.preserve_dir(preserve_dir);
-    }
+    let generator = LatexGenerator::new(config);
 
     let output = config.output();
     if let Some(parent) = output.parent() {

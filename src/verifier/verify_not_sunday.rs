@@ -1,6 +1,6 @@
 use thiserror::Error;
 
-use crate::files::MonthFile;
+use crate::input::json_input::MonthFile;
 use crate::time::{Date, WeekDay};
 use crate::verifier::Verifier;
 

@@ -3,7 +3,7 @@ use std::time::Duration;
 
 use thiserror::Error;
 
-use crate::files::MonthFile;
+use crate::input::json_input::MonthFile;
 use crate::time::{DurationExt, PrettyDuration};
 use crate::verifier::Verifier;
 

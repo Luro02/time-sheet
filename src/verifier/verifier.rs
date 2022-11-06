@@ -1,7 +1,7 @@
 use std::fmt;
 use std::fmt::Debug;
 
-use crate::files::MonthFile;
+use crate::input::json_input::MonthFile;
 
 // relevant data from MonthFile:
 // year + month (for date)

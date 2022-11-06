@@ -2,9 +2,9 @@ use std::time::Duration;
 
 use serde::{Deserialize, Serialize};
 
-use crate::files::Entry;
+use crate::input::json_input::Entry;
+use crate::input::toml_input;
 use crate::time::{Date, Month, WorkingDuration, Year};
-use crate::toml_input;
 
 fn default_schema() -> &'static str {
     "https://raw.githubusercontent.com/kit-sdq/TimeSheetGenerator/master/examples/schemas/month.json"

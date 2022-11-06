@@ -4,8 +4,11 @@ use std::path::{Path, PathBuf};
 
 use anyhow::Context;
 
+use crate::input::json_input::{GlobalFile, MonthFile};
 use crate::input::toml_input;
-use crate::input::{GlobalFile, MonthFile, Signature};
+use crate::input::Signature;
+use crate::latex_string::LatexString;
+use crate::time::WorkingDuration;
 use crate::utils::PathExt;
 
 pub struct Config {
@@ -163,5 +166,13 @@ impl Config {
 
     pub fn preserve_dir(&self) -> Option<&Path> {
         self.preserve_dir.as_deref()
+    }
+
+    pub fn bg_content(&self) -> Option<&LatexString> {
+        self.global_file().bg_content()
+    }
+
+    pub fn working_duration(&self) -> Option<WorkingDuration> {
+        self.month_file().working_time()
     }
 }

@@ -2,10 +2,11 @@ use std::str::FromStr;
 
 use serde::{Deserialize, Serialize};
 
+use crate::input::toml_input;
+use crate::input::WorkingArea;
 use crate::latex_string::LatexString;
 use crate::time::WorkingDuration;
-use crate::working_area::WorkingArea;
-use crate::{toml_input, utils};
+use crate::utils;
 
 #[must_use]
 fn global_schema() -> String {
@@ -28,7 +29,7 @@ pub struct GlobalFile {
     #[serde(rename = "workingArea")]
     working_area: WorkingArea,
     #[serde(skip_serializing)]
-    signature: Option<LatexString>,
+    bg_content: Option<LatexString>,
 }
 
 impl From<(toml_input::About, String, toml_input::Contract)> for GlobalFile {
@@ -43,7 +44,7 @@ impl From<(toml_input::About, String, toml_input::Contract)> for GlobalFile {
             working_time: contract.working_time().clone(),
             wage: contract.wage().unwrap_or(12.00),
             working_area: contract.area().clone(),
-            signature: contract
+            bg_content: contract
                 .bg_content()
                 .map(|s| LatexString::from_str(s).unwrap()),
         }
@@ -52,7 +53,7 @@ impl From<(toml_input::About, String, toml_input::Contract)> for GlobalFile {
 
 impl GlobalFile {
     #[must_use]
-    pub fn signature(&self) -> Option<&str> {
-        self.signature.as_deref()
+    pub fn bg_content(&self) -> Option<&LatexString> {
+        self.bg_content.as_ref()
     }
 }

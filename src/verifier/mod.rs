@@ -1,4 +1,4 @@
-use crate::files::MonthFile;
+use crate::input::json_input::MonthFile;
 
 mod verifier;
 mod verify_not_sunday;

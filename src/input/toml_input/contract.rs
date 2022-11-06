@@ -1,8 +1,8 @@
 use serde::Deserialize;
 use toml::value::Datetime;
 
+use crate::input::WorkingArea;
 use crate::time::WorkingDuration;
-use crate::working_area::WorkingArea;
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct Contract {

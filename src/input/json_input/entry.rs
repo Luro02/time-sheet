@@ -3,8 +3,8 @@ use std::time::Duration;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
+use crate::input::toml_input::{self, Key};
 use crate::time::{self, TimeSpan, TimeStamp};
-use crate::toml_input::{self, Key};
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Entry {

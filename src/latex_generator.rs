@@ -1,12 +1,11 @@
 use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::process::Command;
 
 use log::{debug, info};
 use tempfile::TempDir;
 
-use crate::files::{GlobalFile, MonthFile};
-use crate::input::Signature;
+use crate::input::Config;
 use crate::tex_render::TexRender;
 use crate::utils::{self, Resources};
 
@@ -25,31 +24,13 @@ fn inject_fix(lines: impl Iterator<Item = impl AsRef<str>>) -> String {
     result
 }
 
-pub struct LatexGenerator {
-    month: MonthFile,
-    global: GlobalFile,
-    preserve_dir: Option<PathBuf>,
-    signature: Option<Signature>,
+pub struct LatexGenerator<'a> {
+    config: &'a Config,
 }
 
-impl LatexGenerator {
-    pub fn new(month: MonthFile, global: GlobalFile) -> Self {
-        Self {
-            month,
-            global,
-            preserve_dir: None,
-            signature: None,
-        }
-    }
-
-    pub fn signature(&mut self, signature: Signature) -> &mut Self {
-        self.signature = Some(signature);
-        self
-    }
-
-    pub fn preserve_dir(&mut self, path: impl Into<PathBuf>) -> &mut Self {
-        self.preserve_dir = Some(path.into());
-        self
+impl<'a> LatexGenerator<'a> {
+    pub fn new(config: &'a Config) -> Self {
+        Self { config }
     }
 
     pub fn generate(self, outpath: impl AsRef<Path>) -> anyhow::Result<()> {
@@ -62,8 +43,14 @@ impl LatexGenerator {
 
         debug!("temp_dir: {}", temp_dir.path().display());
         utils::write(&jar_path, jar.data)?;
-        utils::write(&month_path, serde_json::to_string_pretty(&self.month)?)?;
-        utils::write(&global_path, serde_json::to_string_pretty(&self.global)?)?;
+        utils::write(
+            &month_path,
+            serde_json::to_string_pretty(self.config.month_file())?,
+        )?;
+        utils::write(
+            &global_path,
+            serde_json::to_string_pretty(self.config.global_file())?,
+        )?;
 
         info!("Generating latex file");
         let latex_file = temp_dir.path().join("output.tex");
@@ -84,14 +71,14 @@ impl LatexGenerator {
         // fix the latex file, so it does compile:
         let mut latex_file_content = inject_fix(utils::read_to_string(&latex_file)?.lines());
 
-        if let Some(signature) = self.global.signature() {
+        if let Some(signature) = self.config.bg_content() {
             latex_file_content = latex_file_content.replace(
                 "\\SetBgContents{K\\_IPD\\_AZDoku\\_01\\_01-20}",
                 &format!("\\SetBgContents{{{}}}", signature),
             );
         }
 
-        if let Some(signature) = &self.signature {
+        if let Some(signature) = self.config.signature() {
             let prefix = "\t%FOOTER\n\t\\par \\bigskip \\bigskip \\medskip\n";
             let new_path = signature.path().file_name().unwrap();
             latex_file_content = latex_file_content.replace(
@@ -106,13 +93,13 @@ impl LatexGenerator {
             );
         }
 
-        if let Some(working_time) = self.month.working_time() {
+        if let Some(working_duration) = self.config.working_duration() {
             latex_file_content = latex_file_content
                 .replace(
                     "\\centering 40:00",
-                    &format!("\\centering {}", working_time),
+                    &format!("\\centering {}", working_duration),
                 )
-                .replace("& 40:00", &format!("& {}", working_time));
+                .replace("& 40:00", &format!("& {}", working_duration));
         }
 
         let logo_file = "Latex_Logo.pdf";
@@ -124,7 +111,7 @@ impl LatexGenerator {
         )?;
 
         // add the signature image, if it is present
-        if let Some(signature) = &self.signature {
+        if let Some(signature) = self.config.signature() {
             let new_path = signature.path().file_name().unwrap();
             renderer.add_asset_from_bytes(
                 //
@@ -133,7 +120,7 @@ impl LatexGenerator {
             )?;
         }
 
-        if let Some(dir) = self.preserve_dir {
+        if let Some(dir) = self.config.preserve_dir() {
             renderer.preserve_dir(dir);
         }
 
