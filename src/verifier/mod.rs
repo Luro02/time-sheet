@@ -1,4 +1,4 @@
-use crate::input::json_input::MonthFile;
+use crate::input::Config;
 
 mod verifier;
 mod verify_not_sunday;
@@ -16,9 +16,9 @@ impl Verifier for DefaultVerifier {
     type Error = anyhow::Error;
     type Errors = Vec<Self::Error>;
 
-    fn verify(&self, month_file: &MonthFile) -> Result<(), Self::Errors> {
+    fn verify(&self, config: &Config) -> Result<(), Self::Errors> {
         VerifyNotSunday
-            .verify(month_file)
+            .verify(config)
             .map_err(|errors| errors.into_iter().map(Into::into).collect::<Self::Errors>())?;
 
         // TODO: this is broken
@@ -36,7 +36,7 @@ impl Verifier for () {
     type Error = !;
     type Errors = [Self::Error; 1];
 
-    fn verify(&self, _month_file: &MonthFile) -> Result<(), Self::Errors> {
+    fn verify(&self, _config: &Config) -> Result<(), Self::Errors> {
         Ok(())
     }
 }

@@ -51,16 +51,13 @@ impl ExceededWorkTime {
 impl Entry {
     const MAX_WORK_TIME_DAY: Duration = time::duration_from_hours(10);
 
-    fn total_duration(&self) -> Duration {
-        self.end.elapsed(&self.start)
-    }
-
     /// This returns the duration the person has worked, pauses are subtracted from the duration.
     pub fn work_duration(&self) -> Duration {
         let mut duration = self.end.elapsed(&self.start);
 
         if let Some(pause) = &self.pause {
             duration = duration.saturating_sub((*pause).into());
+            // TODO: vacation
         }
 
         duration
@@ -93,5 +90,31 @@ impl Entry {
 
     pub fn time_span(&self) -> TimeSpan {
         TimeSpan::new(self.start, self.end)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::time::DurationExt;
+
+    use super::*;
+
+    use pretty_assertions::assert_eq;
+
+    #[test]
+    fn test_working_duration() {
+        let entry = Entry {
+            action: "test".to_string(),
+            day: 1,
+            start: TimeStamp::new(08, 00).unwrap(),
+            end: TimeStamp::new(12, 23).unwrap(),
+            pause: None,    // Option<TimeStamp>
+            vacation: None, // Option<bool>
+        };
+
+        assert_eq!(
+            entry.work_duration(),
+            Duration::from_hours(4) + Duration::from_mins(23)
+        );
     }
 }

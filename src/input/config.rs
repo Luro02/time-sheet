@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::fs::File;
 use std::io::BufReader;
 use std::path::{Path, PathBuf};
@@ -5,18 +6,18 @@ use std::path::{Path, PathBuf};
 use anyhow::Context;
 
 use crate::input::json_input::{GlobalFile, MonthFile};
-use crate::input::toml_input;
-use crate::input::Signature;
+use crate::input::toml_input::{self, DynamicEntry};
+use crate::input::{Month, Signature};
 use crate::latex_string::LatexString;
-use crate::time::WorkingDuration;
+use crate::utils;
 use crate::utils::PathExt;
 
 pub struct Config {
-    month_file: MonthFile,
     global_file: GlobalFile,
     signature: Option<Signature>,
     output: PathBuf,
     preserve_dir: Option<PathBuf>,
+    month: Month,
 }
 
 pub struct ConfigBuilder {
@@ -26,6 +27,7 @@ pub struct ConfigBuilder {
     signature: Option<Signature>,
     output: Option<PathBuf>,
     preserve_dir: Option<PathBuf>,
+    dynamic_entries: HashMap<String, DynamicEntry>,
 }
 
 impl ConfigBuilder {
@@ -37,6 +39,7 @@ impl ConfigBuilder {
             signature: None,
             output: None,
             preserve_dir: None,
+            dynamic_entries: HashMap::new(),
         }
     }
 
@@ -60,6 +63,11 @@ impl ConfigBuilder {
         self
     }
 
+    pub fn dynamic_entries(&mut self, dynamic_entries: HashMap<String, DynamicEntry>) -> &mut Self {
+        self.dynamic_entries = dynamic_entries;
+        self
+    }
+
     #[must_use]
     pub fn build(self) -> Config {
         let default_file_name = PathBuf::from(format!(
@@ -76,8 +84,19 @@ impl ConfigBuilder {
             }
         });
 
+        let expected_working_duration = self.global_file.expected_working_duration();
+
+        let month = Month::new(
+            self.month_file.month(),
+            self.month_file.year(),
+            self.month_file.transfer(),
+            self.month_file.into_entries(),
+            self.dynamic_entries,
+            Some(expected_working_duration),
+        );
+
         Config {
-            month_file: self.month_file,
+            month,
             global_file: self.global_file,
             signature: self.signature,
             output,
@@ -141,22 +160,26 @@ impl Config {
             .contract(&department)
             .ok_or_else(|| anyhow::anyhow!("no contract for department `{}`", department))?;
         let working_duration = Some(contract.working_time().clone());
+        let dynamic_entries = month
+            .dynamic_entries()
+            .map(|(k, v)| (k.clone(), v.clone()))
+            .collect::<HashMap<_, _>>();
 
         let month_file = MonthFile::from((working_duration, month));
         let global_file = GlobalFile::from((about.clone(), department, contract.clone()));
 
-        Ok(ConfigBuilder::new(month_file, global_file))
+        let mut builder = ConfigBuilder::new(month_file, global_file);
+
+        builder.dynamic_entries(dynamic_entries);
+
+        Ok(builder)
     }
 
     pub fn output(&self) -> &Path {
         &self.output
     }
 
-    pub fn month_file(&self) -> &MonthFile {
-        &self.month_file
-    }
-
-    pub fn global_file(&self) -> &GlobalFile {
+    fn global_file(&self) -> &GlobalFile {
         &self.global_file
     }
 
@@ -172,7 +195,17 @@ impl Config {
         self.global_file().bg_content()
     }
 
-    pub fn working_duration(&self) -> Option<WorkingDuration> {
-        self.month_file().working_time()
+    pub fn month(&self) -> &Month {
+        &self.month
+    }
+
+    pub fn write_global_json(&self, path: impl AsRef<Path>) -> anyhow::Result<()> {
+        utils::write(path, serde_json::to_string_pretty(self.global_file())?)?;
+        Ok(())
+    }
+
+    pub fn write_month_json(&self, path: impl AsRef<Path>) -> anyhow::Result<()> {
+        utils::write(path, serde_json::to_string_pretty(self.month())?)?;
+        Ok(())
     }
 }

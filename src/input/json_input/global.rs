@@ -56,4 +56,8 @@ impl GlobalFile {
     pub fn bg_content(&self) -> Option<&LatexString> {
         self.bg_content.as_ref()
     }
+
+    pub fn expected_working_duration(&self) -> WorkingDuration {
+        self.working_time.clone()
+    }
 }

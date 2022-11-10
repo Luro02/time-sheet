@@ -3,7 +3,7 @@ use std::time::Duration;
 use serde::{Deserialize, Serialize};
 
 use crate::input::json_input::Entry;
-use crate::input::toml_input;
+use crate::input::toml_input::{self, Transfer};
 use crate::time::{Date, Month, WorkingDuration, Year};
 
 fn default_schema() -> &'static str {
@@ -13,14 +13,14 @@ fn default_schema() -> &'static str {
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct MonthFile {
     #[serde(rename = "$schema")]
-    schema: String,
-    year: Year,
-    month: Month,
-    pred_transfer: WorkingDuration,
-    succ_transfer: WorkingDuration,
-    entries: Vec<Entry>,
+    pub(in crate::input) schema: String,
+    pub(in crate::input) year: Year,
+    pub(in crate::input) month: Month,
+    pub(in crate::input) pred_transfer: WorkingDuration,
+    pub(in crate::input) succ_transfer: WorkingDuration,
+    pub(in crate::input) entries: Vec<Entry>,
     #[serde(skip_serializing)]
-    working_time: Option<WorkingDuration>,
+    pub(in crate::input) working_time: Option<WorkingDuration>,
 }
 
 impl From<(Option<WorkingDuration>, toml_input::Month)> for MonthFile {
@@ -47,6 +47,10 @@ impl From<(Option<WorkingDuration>, toml_input::Month)> for MonthFile {
 }
 
 impl MonthFile {
+    pub(in crate::input) fn default_schema() -> &'static str {
+        default_schema()
+    }
+
     #[must_use]
     pub fn year(&self) -> Year {
         self.year
@@ -57,6 +61,7 @@ impl MonthFile {
         self.month
     }
 
+    /*
     #[must_use]
     pub fn succ_transfer(&self) -> Duration {
         // TODO: why only succ_transfer?
@@ -93,5 +98,13 @@ impl MonthFile {
         self.entries
             .iter()
             .filter(move |entry| entry.day() == date.day())
+    }*/
+
+    pub fn transfer(&self) -> Transfer {
+        Transfer::new(self.pred_transfer, self.succ_transfer)
+    }
+
+    pub(in crate::input) fn into_entries(self) -> Vec<Entry> {
+        self.entries
     }
 }

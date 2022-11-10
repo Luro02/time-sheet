@@ -21,6 +21,7 @@ tempfile = "3"
 rust-embed = "6.2"
 fs_extra = "1.2"
 v_latexescape = "0.13"
+static_assertions = "1.1"
 # make backtraces beautiful
 color-backtrace = "0.5"
 

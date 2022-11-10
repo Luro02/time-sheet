@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use thiserror::Error;
 
-use crate::input::json_input::MonthFile;
+use crate::input::Config;
 use crate::time::{self, Date, DurationExt, PrettyDuration, TimeSpan, TimeStamp};
 use crate::verifier::Verifier;
 
@@ -23,11 +23,11 @@ impl Verifier for VerifyTime {
     type Error = InvalidTime;
     type Errors = Vec<Self::Error>;
 
-    fn verify(&self, month_file: &MonthFile) -> Result<(), Self::Errors> {
+    fn verify(&self, config: &Config) -> Result<(), Self::Errors> {
         let mut errors = Vec::new();
-        for day in month_file.days() {
+        for day in config.month().days() {
             // TODO: one needs to sum up the times for all entries on a single day!
-            for entry in month_file.entries_on_day(day) {
+            for entry in config.month().entries_on_day(day) {
                 // https://www.gesetze-im-internet.de/arbzg/BJNR117100994.html
 
                 // one should not work more than 8 hours per day:

@@ -43,14 +43,8 @@ impl<'a> LatexGenerator<'a> {
 
         debug!("temp_dir: {}", temp_dir.path().display());
         utils::write(&jar_path, jar.data)?;
-        utils::write(
-            &month_path,
-            serde_json::to_string_pretty(self.config.month_file())?,
-        )?;
-        utils::write(
-            &global_path,
-            serde_json::to_string_pretty(self.config.global_file())?,
-        )?;
+        self.config.write_month_json(&month_path)?;
+        self.config.write_global_json(&global_path)?;
 
         info!("Generating latex file");
         let latex_file = temp_dir.path().join("output.tex");
@@ -93,14 +87,13 @@ impl<'a> LatexGenerator<'a> {
             );
         }
 
-        if let Some(working_duration) = self.config.working_duration() {
-            latex_file_content = latex_file_content
-                .replace(
-                    "\\centering 40:00",
-                    &format!("\\centering {}", working_duration),
-                )
-                .replace("& 40:00", &format!("& {}", working_duration));
-        }
+        let working_duration = self.config.month().expected_working_duration();
+        latex_file_content = latex_file_content
+            .replace(
+                "\\centering 40:00",
+                &format!("\\centering {}", working_duration),
+            )
+            .replace("& 40:00", &format!("& {}", working_duration));
 
         let logo_file = "Latex_Logo.pdf";
         let mut renderer = TexRender::from_bytes(latex_file_content.into_bytes())?;

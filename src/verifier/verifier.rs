@@ -1,7 +1,7 @@
 use std::fmt;
 use std::fmt::Debug;
 
-use crate::input::json_input::MonthFile;
+use crate::input::Config;
 
 // relevant data from MonthFile:
 // year + month (for date)
@@ -15,5 +15,5 @@ pub trait Verifier {
     type Error: fmt::Display + Debug + Sync + Send + 'static;
     type Errors: IntoIterator<Item = Self::Error>;
 
-    fn verify(&self, month_file: &MonthFile) -> Result<(), Self::Errors>;
+    fn verify(&self, config: &Config) -> Result<(), Self::Errors>;
 }

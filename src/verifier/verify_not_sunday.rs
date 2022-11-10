@@ -1,6 +1,6 @@
 use thiserror::Error;
 
-use crate::input::json_input::MonthFile;
+use crate::input::Config;
 use crate::time::{Date, WeekDay};
 use crate::verifier::Verifier;
 
@@ -16,8 +16,9 @@ impl Verifier for VerifyNotSunday {
     type Error = SundayNotAllowed;
     type Errors = Vec<SundayNotAllowed>;
 
-    fn verify(&self, month_file: &MonthFile) -> Result<(), Self::Errors> {
-        let errors = month_file
+    fn verify(&self, config: &Config) -> Result<(), Self::Errors> {
+        let errors = config
+            .month()
             .days()
             .filter_map(|date| {
                 (date.week_day() == WeekDay::Sunday).then(|| SundayNotAllowed { date })

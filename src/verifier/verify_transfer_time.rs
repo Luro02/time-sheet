@@ -1,10 +1,9 @@
 use std::iter;
-use std::time::Duration;
 
 use thiserror::Error;
 
-use crate::input::json_input::MonthFile;
-use crate::time::{DurationExt, PrettyDuration};
+use crate::input::Config;
+use crate::time::PrettyDuration;
 use crate::verifier::Verifier;
 
 /// This verifies that the successive transfer time is equal to
@@ -23,21 +22,18 @@ impl Verifier for VerifyTransferTime {
     type Error = InvalidTransferTime;
     type Errors = iter::Once<Self::Error>;
 
-    fn verify(&self, month_file: &MonthFile) -> Result<(), Self::Errors> {
-        let total_time = month_file.total_time();
-        let succ_transfer = month_file.succ_transfer();
-        let expected_working_time = month_file
-            .working_time()
-            // TODO: why 99?
-            .map_or(Duration::from_hours(99), Into::into);
+    fn verify(&self, config: &Config) -> Result<(), Self::Errors> {
+        let total_time = config.month().total_working_time();
+        let transfer_to_next_month = config.month().transfer().next_month().to_duration();
+        let expected_working_duration = config.month().expected_working_duration().to_duration();
 
         // transfer_time = total_time - expected_working_time
         // <=> transfer_time + expected_working_time = total_time
-        if succ_transfer + expected_working_time != total_time {
+        if transfer_to_next_month + expected_working_duration != total_time {
             return Err(iter::once(InvalidTransferTime {
-                expected_working_time: expected_working_time.into(),
+                expected_working_time: expected_working_duration.into(),
                 total_time: total_time.into(),
-                transfer_time: succ_transfer.into(),
+                transfer_time: transfer_to_next_month.into(),
             }));
         }
 

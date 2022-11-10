@@ -18,9 +18,7 @@ use crate::latex_generator::LatexGenerator;
 use crate::verifier::{DefaultVerifier, Verifier};
 
 pub fn generate_time_sheet(config: &Config) -> anyhow::Result<()> {
-    let month_file = config.month_file();
-
-    if let Err(errors) = DefaultVerifier.verify(month_file) {
+    if let Err(errors) = DefaultVerifier.verify(config) {
         for error in errors {
             error!("{}", error);
         }
@@ -28,7 +26,7 @@ pub fn generate_time_sheet(config: &Config) -> anyhow::Result<()> {
         return Err(anyhow::anyhow!("verification failed"));
     }
 
-    let total_time = month_file.total_time().as_secs() / 60;
+    let total_time = config.month().total_working_time().as_secs() / 60;
     info!("worked: {:02}:{:02}", total_time / 60, total_time % 60);
 
     info!("generating time sheet from month and global files");
