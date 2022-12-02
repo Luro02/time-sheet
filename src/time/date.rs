@@ -1,6 +1,7 @@
 use core::fmt;
 use core::iter::Step;
 use core::ops::Add;
+use std::ops::AddAssign;
 use std::str::FromStr;
 
 use serde::Deserialize;
@@ -280,6 +281,12 @@ impl Add<usize> for Date {
 
     fn add(self, days: usize) -> Self::Output {
         self.add_days(days)
+    }
+}
+
+impl AddAssign<usize> for Date {
+    fn add_assign(&mut self, days: usize) {
+        *self = self.add_days(days);
     }
 }
 

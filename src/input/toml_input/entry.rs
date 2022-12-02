@@ -11,6 +11,10 @@ impl MultiEntry {
     pub fn iter(&self) -> impl Iterator<Item = &Entry> {
         self.entries.iter()
     }
+
+    pub fn into_iter(self) -> impl Iterator<Item = Entry> {
+        self.entries.into_iter()
+    }
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -29,6 +33,23 @@ pub struct Entry {
 }
 
 impl Entry {
+    pub fn new(
+        action: String,
+        start: TimeStamp,
+        end: TimeStamp,
+        pause: Option<TimeStamp>,
+        is_vacation: Option<bool>,
+    ) -> Self {
+        Self {
+            action,
+            start,
+            end,
+            pause,
+            is_vacation,
+            flex: WorkingDuration::default(),
+        }
+    }
+
     pub fn action(&self) -> &str {
         &self.action
     }

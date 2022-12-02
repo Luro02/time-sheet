@@ -190,7 +190,7 @@ impl Config {
             }
         };
 
-        let month_file = MonthFile::from(month);
+        let month_file = MonthFile::from((*contract.working_time(), month));
         let global_file = GlobalFile::from((about.clone(), department, contract.clone()));
 
         let mut builder = ConfigBuilder::new(month_file, global_file);

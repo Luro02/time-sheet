@@ -6,6 +6,12 @@ pub struct Key {
 }
 
 impl Key {
+    pub const fn from_day(day: usize) -> Self {
+        Self {
+            inner: InnerKey::Day(day),
+        }
+    }
+
     #[must_use]
     pub fn day(&self) -> usize {
         let InnerKey::Day(n) = self.inner;

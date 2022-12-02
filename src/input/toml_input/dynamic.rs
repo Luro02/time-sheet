@@ -248,7 +248,7 @@ mod tests {
             input.general().year(),
             input.transfer().cloned().unwrap_or_default(),
             input
-                .entries()
+                .entries(working_duration)
                 .map(|(key, entry)| json_input::Entry::from((key.clone(), entry.clone())))
                 .collect(),
             input

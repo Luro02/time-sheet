@@ -19,8 +19,8 @@ pub struct MonthFile {
     pub(in crate::input) entries: Vec<Entry>,
 }
 
-impl From<toml_input::Month> for MonthFile {
-    fn from(month: toml_input::Month) -> Self {
+impl From<(WorkingDuration, toml_input::Month)> for MonthFile {
+    fn from((working_duration, month): (WorkingDuration, toml_input::Month)) -> Self {
         Self {
             schema: default_schema().to_string(),
             year: month.general().year(),
@@ -30,7 +30,7 @@ impl From<toml_input::Month> for MonthFile {
                 .map_or_else(Default::default, |t| t.previous()),
             succ_transfer: month.transfer().map_or_else(Default::default, |t| t.next()),
             entries: month
-                .entries()
+                .entries(working_duration)
                 .map(|(key, entry)| Entry::from((key.clone(), entry.clone())))
                 .collect(),
         }

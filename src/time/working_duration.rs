@@ -55,23 +55,26 @@ impl WorkingDuration {
     }
 
     #[must_use]
-    pub fn from_mins(mins: u16) -> Self {
+    pub const fn from_mins(mins: u16) -> Self {
         let hours = mins / 60;
         let minutes = mins % 60;
 
-        Self::new(hours as u8, minutes as u8)
-            .expect("hours must be <= 99 and minutes must be <= 60")
+        if hours > 99 {
+            panic!("hours must be in range 0..=99");
+        }
+
+        unsafe { Self::new_unchecked(hours as u8, minutes as u8) }
     }
 
     // the maximum WorkingDuration is 99:99, which would be 99 * 60 + 99 = 6039
     // u16::MAX is 2^16 - 1 = 65535
     #[must_use]
-    const fn as_minutes(&self) -> u16 {
+    pub const fn as_mins(&self) -> u16 {
         self.hours as u16 * 60 + self.minutes as u16
     }
 
     pub fn to_duration(&self) -> Duration {
-        Duration::from_mins(self.as_minutes() as u64)
+        Duration::from_mins(self.as_mins() as u64)
     }
 
     pub const fn hours(&self) -> u8 {
@@ -129,7 +132,7 @@ impl Add<Duration> for WorkingDuration {
     type Output = Self;
 
     fn add(self, duration: Duration) -> Self::Output {
-        Self::from_mins((duration.as_mins() + self.as_minutes() as u64) as u16)
+        Self::from_mins((duration.as_mins() + self.as_mins() as u64) as u16)
     }
 }
 
