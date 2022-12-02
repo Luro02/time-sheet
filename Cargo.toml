@@ -24,6 +24,7 @@ v_latexescape = "0.13"
 static_assertions = "1.1"
 # make backtraces beautiful
 color-backtrace = "0.5"
+indexmap = { version = "1.9", features = ["serde"] }
 
 # used for logging
 log = "0.4"

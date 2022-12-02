@@ -24,7 +24,7 @@ impl Verifier for VerifyTransferTime {
 
     fn verify(&self, config: &Config) -> Result<(), Self::Errors> {
         let total_time = config.month().total_working_time();
-        let transfer_to_next_month = config.month().transfer().next_month().to_duration();
+        let transfer_to_next_month = config.month().transfer().next().to_duration();
         let expected_working_duration = config.month().expected_working_duration().to_duration();
 
         // transfer_time = total_time - expected_working_time

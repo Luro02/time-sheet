@@ -1,10 +1,8 @@
-use std::time::Duration;
-
 use serde::{Deserialize, Serialize};
 
 use crate::input::json_input::Entry;
 use crate::input::toml_input::{self, Transfer};
-use crate::time::{Date, Month, WorkingDuration, Year};
+use crate::time::{Month, WorkingDuration, Year};
 
 fn default_schema() -> &'static str {
     "https://raw.githubusercontent.com/kit-sdq/TimeSheetGenerator/master/examples/schemas/month.json"
@@ -19,29 +17,22 @@ pub struct MonthFile {
     pub(in crate::input) pred_transfer: WorkingDuration,
     pub(in crate::input) succ_transfer: WorkingDuration,
     pub(in crate::input) entries: Vec<Entry>,
-    #[serde(skip_serializing)]
-    pub(in crate::input) working_time: Option<WorkingDuration>,
 }
 
-impl From<(Option<WorkingDuration>, toml_input::Month)> for MonthFile {
-    fn from((working_time, month): (Option<WorkingDuration>, toml_input::Month)) -> Self {
+impl From<toml_input::Month> for MonthFile {
+    fn from(month: toml_input::Month) -> Self {
         Self {
             schema: default_schema().to_string(),
             year: month.general().year(),
             month: month.general().month(),
             pred_transfer: month
                 .transfer()
-                .map(|t| t.previous_month().clone())
-                .unwrap_or_default(),
-            succ_transfer: month
-                .transfer()
-                .map(|t| t.next_month().clone())
-                .unwrap_or_default(),
+                .map_or_else(Default::default, |t| t.previous()),
+            succ_transfer: month.transfer().map_or_else(Default::default, |t| t.next()),
             entries: month
                 .entries()
                 .map(|(key, entry)| Entry::from((key.clone(), entry.clone())))
                 .collect(),
-            working_time,
         }
     }
 }
@@ -60,45 +51,6 @@ impl MonthFile {
     pub fn month(&self) -> Month {
         self.month
     }
-
-    /*
-    #[must_use]
-    pub fn succ_transfer(&self) -> Duration {
-        // TODO: why only succ_transfer?
-        self.succ_transfer.into()
-    }
-
-    #[must_use]
-    pub fn total_time(&self) -> Duration {
-        let mut result = Duration::from_secs(0);
-
-        for entry in self.entries.iter() {
-            result += entry.work_duration();
-        }
-
-        result
-    }
-
-    /// Returns the amount of time that the user should have worked in this month.
-    ///
-    /// For example if the user has to work 40 hours a month, then there will be
-    /// a working time of 40 hours returned.
-    #[must_use]
-    pub fn working_time(&self) -> Option<WorkingDuration> {
-        self.working_time
-    }
-
-    pub fn days(&self) -> impl Iterator<Item = Date> + '_ {
-        self.entries.iter().map(|entry| {
-            Date::new(self.year(), self.month(), entry.day()).expect("the date is invalid???")
-        })
-    }
-
-    pub fn entries_on_day(&self, date: Date) -> impl Iterator<Item = &Entry> + '_ {
-        self.entries
-            .iter()
-            .filter(move |entry| entry.day() == date.day())
-    }*/
 
     pub fn transfer(&self) -> Transfer {
         Transfer::new(self.pred_transfer, self.succ_transfer)

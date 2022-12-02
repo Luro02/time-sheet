@@ -17,9 +17,13 @@ impl Verifier for VerifyNotSunday {
     type Errors = Vec<SundayNotAllowed>;
 
     fn verify(&self, config: &Config) -> Result<(), Self::Errors> {
-        let errors = config
-            .month()
-            .days()
+        let month_config = config.month();
+        let month = month_config.month();
+        let year = month_config.year();
+
+        let errors = year
+            .iter_days_in(month)
+            .filter(|date| month_config.has_entries_on(*date))
             .filter_map(|date| {
                 (date.week_day() == WeekDay::Sunday).then(|| SundayNotAllowed { date })
             })

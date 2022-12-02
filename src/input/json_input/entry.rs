@@ -1,3 +1,4 @@
+use std::cmp::{Ord, Ordering, PartialOrd};
 use std::time::Duration;
 
 use serde::{Deserialize, Serialize};
@@ -6,7 +7,7 @@ use thiserror::Error;
 use crate::input::toml_input::{self, Key};
 use crate::time::{self, TimeSpan, TimeStamp};
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
 pub struct Entry {
     action: String,
     day: usize,
@@ -16,6 +17,26 @@ pub struct Entry {
     pause: Option<TimeStamp>,
     #[serde(skip_serializing_if = "Option::is_none")]
     vacation: Option<bool>,
+}
+
+impl Entry {
+    pub fn new(
+        action: String,
+        day: usize,
+        start: TimeStamp,
+        end: TimeStamp,
+        pause: Option<TimeStamp>,
+        vacation: Option<bool>,
+    ) -> Self {
+        Self {
+            action,
+            day,
+            start,
+            end,
+            pause,
+            vacation,
+        }
+    }
 }
 
 impl From<(Key, toml_input::Entry)> for Entry {
@@ -28,6 +49,43 @@ impl From<(Key, toml_input::Entry)> for Entry {
             pause: entry.pause().cloned(),
             vacation: Some(entry.is_vacation()),
         }
+    }
+}
+
+impl PartialOrd for Entry {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for Entry {
+    fn cmp(&self, other: &Self) -> Ordering {
+        if self.eq(other) {
+            return Ordering::Equal;
+        }
+
+        let mut result = self.day.cmp(&other.day);
+        if result == Ordering::Equal {
+            result = self.start.cmp(&other.start);
+        }
+
+        if result == Ordering::Equal {
+            result = self.end.cmp(&other.end);
+        }
+
+        if result == Ordering::Equal {
+            result = self.pause.cmp(&other.pause);
+        }
+
+        if result == Ordering::Equal {
+            result = self.action.cmp(&other.action);
+        }
+
+        if result == Ordering::Equal {
+            result = self.pause.cmp(&other.pause);
+        }
+
+        result
     }
 }
 

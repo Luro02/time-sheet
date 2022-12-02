@@ -1,4 +1,5 @@
-use std::ops::Add;
+use std::iter::Sum;
+use std::ops::{Add, AddAssign, Mul, Sub, SubAssign};
 use std::str::FromStr;
 use std::time::Duration;
 
@@ -7,7 +8,17 @@ use serde::{de, ser, Deserialize, Serialize};
 use thiserror::Error;
 
 use crate::time::DurationExt;
-use crate::utils;
+use crate::unreachable_unchecked;
+
+#[macro_export]
+macro_rules! working_duration {
+    ( $left:literal : $right:literal ) => {{
+        static_assertions::const_assert!($left % 100 == $left);
+        static_assertions::const_assert!($right % 60 == $right);
+
+        unsafe { $crate::time::WorkingDuration::new_unchecked($left, $right) }
+    }};
+}
 
 #[derive(Debug, Copy, Clone, Display, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[display(fmt = "{:02}:{:02}", hours, minutes)]
@@ -25,37 +36,63 @@ pub struct InvalidWorkingDuration {
 
 impl WorkingDuration {
     #[must_use]
-    pub fn new(hours: u8, minutes: u8) -> Result<Self, InvalidWorkingDuration> {
-        if hours > 99 || minutes > 99 {
+    pub const fn new(hours: u8, minutes: u8) -> Result<Self, InvalidWorkingDuration> {
+        if hours > 99 || minutes > 60 {
             return Err(InvalidWorkingDuration { hours, minutes });
         }
 
         Ok(Self { hours, minutes })
     }
 
+    // internal non-public api to make the `working_duration` macro work in const context.
+    #[doc(hidden)]
+    #[must_use]
+    pub const unsafe fn new_unchecked(hours: u8, minutes: u8) -> Self {
+        if hours > 99 || minutes > 60 {
+            unreachable_unchecked!("hours and minutes must be in range 0..=99 but are not");
+        }
+
+        Self { hours, minutes }
+    }
+
+    #[must_use]
+    pub fn from_mins(mins: u16) -> Self {
+        let hours = mins / 60;
+        let minutes = mins % 60;
+
+        Self::new(hours as u8, minutes as u8)
+            .expect("hours must be <= 99 and minutes must be <= 60")
+    }
+
     // the maximum WorkingDuration is 99:99, which would be 99 * 60 + 99 = 6039
     // u16::MAX is 2^16 - 1 = 65535
     #[must_use]
-    fn as_minutes(&self) -> u16 {
+    const fn as_minutes(&self) -> u16 {
         self.hours as u16 * 60 + self.minutes as u16
     }
 
     pub fn to_duration(&self) -> Duration {
         Duration::from_mins(self.as_minutes() as u64)
     }
+
+    pub const fn hours(&self) -> u8 {
+        self.hours
+    }
+
+    pub const fn minutes(&self) -> u8 {
+        self.minutes
+    }
 }
 
-impl Into<Duration> for WorkingDuration {
-    fn into(self) -> Duration {
-        self.to_duration()
+impl From<WorkingDuration> for Duration {
+    fn from(value: WorkingDuration) -> Self {
+        value.to_duration()
     }
 }
 
 impl From<Duration> for WorkingDuration {
     fn from(duration: Duration) -> Self {
-        let minutes = duration.as_secs() / 60;
-
-        Self::new(((minutes / 60) % 24) as u8, (minutes % 60) as u8).unwrap()
+        Self::from_mins(duration.as_mins() as u16)
     }
 }
 
@@ -102,13 +139,112 @@ impl Add<Duration> for WorkingDuration {
     type Output = Self;
 
     fn add(self, duration: Duration) -> Self::Output {
-        let seconds = duration.as_secs();
-        let minutes = seconds % 60;
-        let hours = seconds / 60;
+        Self::from_mins((duration.as_mins() + self.as_minutes() as u64) as u16)
+    }
+}
 
-        Self {
-            minutes: utils::overflowing_add(self.minutes as u64, minutes, 99) as u8,
-            hours: utils::overflowing_add(self.hours as u64, hours, 99) as u8,
-        }
+impl AddAssign<Duration> for WorkingDuration {
+    fn add_assign(&mut self, duration: Duration) {
+        *self = *self + duration;
+    }
+}
+
+impl Add for WorkingDuration {
+    type Output = Self;
+
+    fn add(self, other: Self) -> Self::Output {
+        self + other.to_duration()
+    }
+}
+
+impl AddAssign for WorkingDuration {
+    fn add_assign(&mut self, other: Self) {
+        *self = *self + other;
+    }
+}
+
+impl Sub for WorkingDuration {
+    type Output = Self;
+
+    fn sub(self, other: Self) -> Self::Output {
+        Self::from(self.to_duration() - other.to_duration())
+    }
+}
+
+impl Mul<u32> for WorkingDuration {
+    type Output = Self;
+
+    fn mul(self, rhs: u32) -> Self::Output {
+        Self::from(self.to_duration() * rhs)
+    }
+}
+
+impl SubAssign for WorkingDuration {
+    fn sub_assign(&mut self, other: Self) {
+        *self = *self - other;
+    }
+}
+
+impl<T> Sum<T> for WorkingDuration
+where
+    Self: Add<T, Output = Self>,
+{
+    fn sum<I>(iter: I) -> Self
+    where
+        I: Iterator<Item = T>,
+    {
+        iter.fold(Self::default(), Add::add)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    use pretty_assertions::assert_eq;
+
+    use crate::working_duration;
+
+    #[test]
+    fn test_add_duration() {
+        // 12:23:42
+        let duration = Duration::from_hours(12) + Duration::from_mins(23) + Duration::from_secs(42);
+
+        assert_eq!(
+            working_duration!(01:20) + duration,
+            working_duration!(13:43)
+        );
+
+        // test with overflow:
+        assert_eq!(
+            working_duration!(01:40) + duration,
+            working_duration!(14:03)
+        );
+
+        assert_eq!(
+            working_duration!(01:38) * (6 * 3 + 4 + 3) + working_duration!(00:10),
+            working_duration!(41:00),
+        );
+    }
+
+    #[test]
+    fn test_sub() {
+        assert_eq!(
+            working_duration!(01:20) - working_duration!(00:40),
+            working_duration!(00:40)
+        );
+
+        assert_eq!(
+            working_duration!(01:20) - working_duration!(01:20),
+            working_duration!(00:00)
+        );
+
+        assert_eq!(
+            working_duration!(02:20) - working_duration!(01:20),
+            working_duration!(01:00)
+        );
+
+        // essentially the following property has to hold:
+        // (a + b) - b = a
     }
 }

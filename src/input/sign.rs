@@ -6,6 +6,23 @@ pub enum Sign {
     Negative,
 }
 
+impl Sign {
+    pub const fn from_number(number: i32) -> Self {
+        if number < 0 {
+            Self::Negative
+        } else {
+            Self::Positive
+        }
+    }
+
+    pub fn symbol(&self) -> char {
+        match self {
+            Self::Positive => '+',
+            Self::Negative => '-',
+        }
+    }
+}
+
 impl Neg for Sign {
     type Output = Self;
 

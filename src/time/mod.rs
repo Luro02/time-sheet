@@ -18,9 +18,9 @@ impl fmt::Display for PrettyDuration {
         write!(
             f,
             "{:02}:{:02}:{:02}",
-            self.0.hours(),
-            self.0.minutes() % 60,
-            self.0.seconds() % 60
+            self.0.as_hours(),
+            self.0.as_mins() % 60,
+            self.0.as_secs() % 60
         )
     }
 }
@@ -41,16 +41,16 @@ pub trait DurationExt {
     fn from_mins(mins: u64) -> Duration;
 
     #[must_use]
-    fn seconds(&self) -> u64;
+    fn as_secs(&self) -> u64;
 
     #[must_use]
-    fn minutes(&self) -> u64 {
-        self.seconds() / 60
+    fn as_mins(&self) -> u64 {
+        self.as_secs() / 60
     }
 
     #[must_use]
-    fn hours(&self) -> u64 {
-        self.minutes() / 60
+    fn as_hours(&self) -> u64 {
+        self.as_mins() / 60
     }
 }
 
@@ -59,8 +59,8 @@ impl DurationExt for Duration {
         Duration::from_secs(mins * 60)
     }
 
-    fn seconds(&self) -> u64 {
-        self.as_secs()
+    fn as_secs(&self) -> u64 {
+        Duration::as_secs(self)
     }
 }
 

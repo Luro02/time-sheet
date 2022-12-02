@@ -25,7 +25,15 @@ impl Verifier for VerifyTime {
 
     fn verify(&self, config: &Config) -> Result<(), Self::Errors> {
         let mut errors = Vec::new();
-        for day in config.month().days() {
+
+        let month_config = config.month();
+        let month = month_config.month();
+        let year = month_config.year();
+
+        for day in year
+            .iter_days_in(month)
+            .filter(|date| month_config.has_entries_on(*date))
+        {
             // TODO: one needs to sum up the times for all entries on a single day!
             for entry in config.month().entries_on_day(day) {
                 // https://www.gesetze-im-internet.de/arbzg/BJNR117100994.html

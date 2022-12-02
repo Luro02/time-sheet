@@ -4,7 +4,7 @@ use core::iter::Step;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-#[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Eq, Deserialize, Serialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Deserialize, Serialize)]
 #[serde(try_from = "usize")]
 #[serde(into = "usize")]
 pub enum Month {
@@ -23,7 +23,11 @@ pub enum Month {
 }
 
 impl Month {
-    pub fn months() -> impl IntoIterator<Item = Month> {
+    pub const fn new(number: usize) -> Self {
+        Self::months()[number - 1]
+    }
+
+    pub const fn months() -> [Self; 12] {
         [
             Self::January,
             Self::February,
@@ -40,8 +44,18 @@ impl Month {
         ]
     }
 
-    pub fn as_usize(&self) -> usize {
+    pub const fn as_usize(&self) -> usize {
         *self as usize
+    }
+
+    #[must_use]
+    pub(crate) const fn is_eq(&self, other: &Self) -> bool {
+        self.as_usize() == other.as_usize()
+    }
+
+    #[must_use]
+    pub const fn next(&self) -> Self {
+        Self::months()[self.as_usize() % 12]
     }
 }
 
@@ -101,6 +115,22 @@ mod tests {
     fn test_display() {
         for month in Month::months() {
             assert_eq!(month.to_string(), month.as_usize().to_string());
+        }
+    }
+
+    #[test]
+    fn test_next() {
+        assert_eq!(Month::December.next(), Month::January);
+        assert_eq!(Month::January.next(), Month::February);
+        assert_eq!(Month::February.next(), Month::March);
+        assert_eq!(Month::March.next(), Month::April);
+        assert_eq!(Month::April.next(), Month::May);
+        assert_eq!(Month::May.next(), Month::June);
+        assert_eq!(Month::June.next(), Month::July);
+
+        let months = Month::months();
+        for i in 0..months.len() {
+            assert_eq!(months[i].next(), months[(i + 1) % months.len()]);
         }
     }
 }

@@ -1,9 +1,10 @@
-use std::collections::HashMap;
 use std::fs::File;
-use std::io::BufReader;
+use std::io::{BufReader, Read};
 use std::path::{Path, PathBuf};
 
 use anyhow::Context;
+use indexmap::IndexMap;
+use serde::de::DeserializeOwned;
 
 use crate::input::json_input::{GlobalFile, MonthFile};
 use crate::input::toml_input::{self, DynamicEntry};
@@ -27,7 +28,18 @@ pub struct ConfigBuilder {
     signature: Option<Signature>,
     output: Option<PathBuf>,
     preserve_dir: Option<PathBuf>,
-    dynamic_entries: HashMap<String, DynamicEntry>,
+    dynamic_entries: IndexMap<String, DynamicEntry>,
+}
+
+fn toml_from_reader<R, T>(reader: R) -> anyhow::Result<T>
+where
+    R: Read,
+    T: DeserializeOwned,
+{
+    let mut reader = BufReader::new(reader);
+    let mut date = String::with_capacity(1024 * 1024);
+    reader.read_to_string(&mut date)?;
+    Ok(toml::from_str(&date)?)
 }
 
 impl ConfigBuilder {
@@ -39,7 +51,7 @@ impl ConfigBuilder {
             signature: None,
             output: None,
             preserve_dir: None,
-            dynamic_entries: HashMap::new(),
+            dynamic_entries: IndexMap::new(),
         }
     }
 
@@ -63,7 +75,10 @@ impl ConfigBuilder {
         self
     }
 
-    pub fn dynamic_entries(&mut self, dynamic_entries: HashMap<String, DynamicEntry>) -> &mut Self {
+    pub fn dynamic_entries(
+        &mut self,
+        dynamic_entries: IndexMap<String, DynamicEntry>,
+    ) -> &mut Self {
         self.dynamic_entries = dynamic_entries;
         self
     }
@@ -147,30 +162,43 @@ impl Config {
         global: impl AsRef<Path>,
         department: impl Into<String>,
     ) -> anyhow::Result<ConfigBuilder> {
-        let month: toml_input::Month =
-            serde_json::from_reader(BufReader::new(File::open(month.as_ref())?))
-                .with_context(|| format!("failed to parse `{}`", month.as_ref().display()))?;
-        let global: toml_input::Global =
-            serde_json::from_reader(BufReader::new(File::open(global.as_ref())?))
-                .with_context(|| format!("failed to parse `{}`", global.as_ref().display()))?;
+        let month: toml_input::Month = toml_from_reader(File::open(month.as_ref())?)
+            .with_context(|| format!("failed to parse `{}`", month.as_ref().display()))?;
+        let global: toml_input::Global = toml_from_reader(File::open(global.as_ref())?)
+            .with_context(|| format!("failed to parse `{}`", global.as_ref().display()))?;
 
         let department = department.into();
         let about = global.about();
         let contract = global
             .contract(&department)
             .ok_or_else(|| anyhow::anyhow!("no contract for department `{}`", department))?;
-        let working_duration = Some(contract.working_time().clone());
         let dynamic_entries = month
             .dynamic_entries()
             .map(|(k, v)| (k.clone(), v.clone()))
-            .collect::<HashMap<_, _>>();
+            .collect::<IndexMap<_, _>>();
 
-        let month_file = MonthFile::from((working_duration, month));
+        let signature = {
+            if let (Some(month_signature), Some(global_signature)) =
+                (month.general().signature(), global.about().signature())
+            {
+                Some(Signature::from((
+                    month_signature.date(),
+                    global_signature.clone(),
+                )))
+            } else {
+                None
+            }
+        };
+
+        let month_file = MonthFile::from(month);
         let global_file = GlobalFile::from((about.clone(), department, contract.clone()));
 
         let mut builder = ConfigBuilder::new(month_file, global_file);
 
         builder.dynamic_entries(dynamic_entries);
+        if let Some(signature) = signature {
+            builder.signature(signature);
+        }
 
         Ok(builder)
     }

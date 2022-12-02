@@ -3,6 +3,17 @@ use serde::Deserialize;
 use crate::time::{TimeStamp, WorkingDuration};
 
 #[derive(Debug, Clone, Deserialize)]
+pub struct MultiEntry {
+    entries: Vec<Entry>,
+}
+
+impl MultiEntry {
+    pub fn iter(&self) -> impl Iterator<Item = &Entry> {
+        self.entries.iter()
+    }
+}
+
+#[derive(Debug, Clone, Deserialize)]
 pub struct Entry {
     action: String,
     start: TimeStamp,

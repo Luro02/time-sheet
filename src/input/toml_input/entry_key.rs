@@ -18,7 +18,9 @@ impl<'de> de::Deserialize<'de> for Key {
     where
         D: de::Deserializer<'de>,
     {
-        let number = usize::deserialize(deserializer)?;
+        let number = String::deserialize(deserializer)?
+            .parse::<usize>()
+            .map_err(de::Error::custom)?;
 
         if number == 0 || number > 31 {
             return Err(de::Error::custom(format!(

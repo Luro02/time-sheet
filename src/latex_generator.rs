@@ -34,20 +34,26 @@ impl<'a> LatexGenerator<'a> {
     }
 
     pub fn generate(self, outpath: impl AsRef<Path>) -> anyhow::Result<()> {
-        let temp_dir = TempDir::new()?;
-        let month_path = temp_dir.path().join("month.json");
-        let global_path = temp_dir.path().join("global.json");
+        let temp_dir = {
+            if let Some(dir) = self.config.preserve_dir() {
+                dir.to_path_buf()
+            } else {
+                TempDir::new()?.into_path()
+            }
+        };
+        let month_path = temp_dir.join("month.json");
+        let global_path = temp_dir.join("global.json");
         let jar =
             Resources::get("TimeSheetGenerator.jar").expect("jar should be embedded in the binary");
-        let jar_path = temp_dir.path().join("TimeSheetGenerator.jar");
+        let jar_path = temp_dir.join("TimeSheetGenerator.jar");
 
-        debug!("temp_dir: {}", temp_dir.path().display());
+        debug!("temp_dir: {}", temp_dir.display());
         utils::write(&jar_path, jar.data)?;
         self.config.write_month_json(&month_path)?;
         self.config.write_global_json(&global_path)?;
 
         info!("Generating latex file");
-        let latex_file = temp_dir.path().join("output.tex");
+        let latex_file = temp_dir.join("output.tex");
         let output = Command::new("java")
             .arg("-jar")
             .arg(&jar_path)

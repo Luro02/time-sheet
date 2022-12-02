@@ -1,9 +1,9 @@
-use std::cmp;
 use std::time::Duration;
 
 use derive_more::Display;
 
 use crate::time::TimeStamp;
+use crate::{max, min};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Display)]
 #[display(fmt = "{} - {}", start, end)]
@@ -22,12 +22,12 @@ impl TimeSpan {
         // 03:00 to 07:00
         // -> 01:00
 
-        let overlap_window_end = cmp::min(self.end, other.end);
-        let overlap_window_start = cmp::max(self.start, other.start);
-
-        if self.end <= other.start && self.start >= other.end {
+        if self.end < other.start || self.start > other.end {
             return None;
         }
+
+        let overlap_window_start = max!(self.start, other.start);
+        let overlap_window_end = min!(self.end, other.end);
 
         Some(overlap_window_start.elapsed(&overlap_window_end))
     }
@@ -38,6 +38,8 @@ mod tests {
     use super::*;
 
     use pretty_assertions::assert_eq;
+
+    use crate::working_duration;
 
     #[test]
     fn test_overlapping_duration() {
@@ -91,6 +93,18 @@ mod tests {
                 TimeStamp::new(23, 0).unwrap()
             )),
             None
+        );
+
+        assert_eq!(
+            TimeSpan::new(
+                TimeStamp::new(0, 0).unwrap(),
+                TimeStamp::new(1, 10).unwrap()
+            )
+            .overlapping_duration(&TimeSpan::new(
+                TimeStamp::new(0, 0).unwrap(),
+                TimeStamp::new(10, 10).unwrap()
+            )),
+            Some(working_duration!(01:10).to_duration()),
         );
     }
 }
