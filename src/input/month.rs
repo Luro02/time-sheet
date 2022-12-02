@@ -74,7 +74,7 @@ impl Month {
         }
 
         // add the time from the previous/next month
-        result + self.transfer.clone()
+        result + self.transfer
     }
 
     /// Checks if one can work the provided `duration` on that `date`, without exceeding

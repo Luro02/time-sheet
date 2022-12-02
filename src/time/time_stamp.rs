@@ -35,7 +35,6 @@ pub struct InvalidTime {
 }
 
 impl TimeStamp {
-    #[must_use]
     pub fn new(hour: u8, minute: u8) -> Result<Self, InvalidTime> {
         if hour > 23 || minute > 59 {
             return Err(InvalidTime { hour, minute });
@@ -70,9 +69,9 @@ impl TimeStamp {
     }
 }
 
-impl Into<Duration> for TimeStamp {
-    fn into(self) -> Duration {
-        Duration::from_secs(self.as_minutes() as u64 * 60)
+impl From<TimeStamp> for Duration {
+    fn from(time: TimeStamp) -> Self {
+        Duration::from_secs(time.as_minutes() as u64 * 60)
     }
 }
 

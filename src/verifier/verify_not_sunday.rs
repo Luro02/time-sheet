@@ -25,7 +25,7 @@ impl Verifier for VerifyNotSunday {
             .iter_days_in(month)
             .filter(|date| month_config.has_entries_on(*date))
             .filter_map(|date| {
-                (date.week_day() == WeekDay::Sunday).then(|| SundayNotAllowed { date })
+                (date.week_day() == WeekDay::Sunday).then_some(SundayNotAllowed { date })
             })
             .collect::<Vec<_>>();
 

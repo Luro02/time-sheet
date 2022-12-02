@@ -99,7 +99,7 @@ impl DynamicEntry {
     #[must_use]
     pub fn duration(&self) -> Option<WorkingDuration> {
         match self.input {
-            DynamicEntryInput::Fixed { duration } => Some(duration.into()),
+            DynamicEntryInput::Fixed { duration } => Some(duration),
             _ => None,
         }
     }

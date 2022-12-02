@@ -41,7 +41,7 @@ impl From<(toml_input::About, String, toml_input::Contract)> for GlobalFile {
             name: about.name().to_string(),
             staff_id: about.staff_id(),
             department,
-            working_time: contract.working_time().clone(),
+            working_time: *contract.working_time(),
             wage: contract.wage().unwrap_or(12.00),
             working_area: contract.area().clone(),
             bg_content: contract
@@ -58,6 +58,6 @@ impl GlobalFile {
     }
 
     pub fn expected_working_duration(&self) -> WorkingDuration {
-        self.working_time.clone()
+        self.working_time
     }
 }

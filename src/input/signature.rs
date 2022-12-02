@@ -17,7 +17,7 @@ impl Signature {
         Self {
             path: path.into(),
             width: 3.8,
-            date: date.into(),
+            date,
         }
     }
 
@@ -31,13 +31,13 @@ impl Signature {
         Self {
             path: path.into(),
             width,
-            date: date.into(),
+            date,
         }
     }
 
     #[must_use]
-    pub fn date(&self) -> &Date {
-        &self.date
+    pub fn date(&self) -> Date {
+        self.date
     }
 
     #[must_use]

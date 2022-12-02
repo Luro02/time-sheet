@@ -20,7 +20,7 @@ macro_rules! working_duration {
     }};
 }
 
-#[derive(Debug, Copy, Clone, Display, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Copy, Clone, Display, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
 #[display(fmt = "{:02}:{:02}", hours, minutes)]
 pub struct WorkingDuration {
     hours: u8,
@@ -35,7 +35,6 @@ pub struct InvalidWorkingDuration {
 }
 
 impl WorkingDuration {
-    #[must_use]
     pub const fn new(hours: u8, minutes: u8) -> Result<Self, InvalidWorkingDuration> {
         if hours > 99 || minutes > 60 {
             return Err(InvalidWorkingDuration { hours, minutes });
@@ -93,15 +92,6 @@ impl From<WorkingDuration> for Duration {
 impl From<Duration> for WorkingDuration {
     fn from(duration: Duration) -> Self {
         Self::from_mins(duration.as_mins() as u16)
-    }
-}
-
-impl Default for WorkingDuration {
-    fn default() -> Self {
-        Self {
-            hours: 0,
-            minutes: 0,
-        }
     }
 }
 

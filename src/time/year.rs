@@ -96,7 +96,6 @@ impl Year {
 
         // calculate the days elapsed between Self::BASE_DATE and self
         let days = {
-            // something in here must be broken:
             let mut days = 0;
 
             // days between Month::January (= month_ref) and month
@@ -107,8 +106,7 @@ impl Year {
             days
         };
 
-        // this should be correct, because has been tested
-        return week_day_ref.add_const(days);
+        week_day_ref.add_const(days)
     }
 
     /// Returns the number of days that have passed since `other`.
@@ -170,18 +168,9 @@ impl Year {
     }
 
     pub fn iter_days_in(&self, month: Month) -> RangeInclusive<Date> {
-        /*
-        // for example 31 days
-        let days = self.number_of_days_in_month(month);
-        let year = *self;
-
-        (1..=days)
-            .into_iter()
-            .map(move |day| Date::new(year, month, day).expect("date should be valid"))*/
         Date::first_day(*self, month)..=Date::last_day(*self, month)
     }
 
-    #[must_use]
     pub fn iter_weeks_in(
         &self,
         month: Month,

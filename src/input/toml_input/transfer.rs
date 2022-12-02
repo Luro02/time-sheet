@@ -120,7 +120,7 @@ impl Mul<i32> for Transfer {
         let (sign, transfer) = self.net_transfer();
         let other_sign = Sign::from_number(rhs);
 
-        Self::from_sign(sign * other_sign, transfer * rhs.abs() as u32)
+        Self::from_sign(sign * other_sign, transfer * rhs.unsigned_abs())
     }
 }
 

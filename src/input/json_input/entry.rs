@@ -44,9 +44,9 @@ impl From<(Key, toml_input::Entry)> for Entry {
         Self {
             action: entry.action().to_string(),
             day: key.day(),
-            start: entry.start().clone(),
-            end: entry.end().clone(),
-            pause: entry.pause().cloned(),
+            start: *entry.start(),
+            end: *entry.end(),
+            pause: entry.pause().copied(),
             vacation: Some(entry.is_vacation()),
         }
     }
