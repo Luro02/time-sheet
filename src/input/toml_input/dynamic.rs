@@ -1,12 +1,12 @@
 use std::iter;
+use std::ops::{Sub, SubAssign};
 
 use serde::Deserialize;
 
 use crate::input::scheduler::{DailyLimiter, FixedScheduler, MonthScheduler, WorkdayScheduler};
-use crate::input::Month;
-use crate::input::Scheduler;
+use crate::input::scheduler::{ScheduledTime, WorkSchedule};
+use crate::input::{Month, Transfer};
 use crate::time::{Date, WorkingDuration};
-use crate::working_duration;
 
 #[derive(Debug, Clone, PartialEq, Deserialize)]
 #[serde(untagged)]
@@ -21,77 +21,121 @@ pub struct DynamicEntry {
     input: DynamicEntryInput,
 }
 
-struct WorkSchedule {
-    /// The start date of the work schedule.
-    start_date: Date,
-    /// The end date of the work schedule (inclusive)
-    end_date: Date,
+#[derive(Debug, Clone, PartialEq)]
+pub struct ScheduledDistribution<Id> {
+    transfer_time: Transfer,
+    schedule: Vec<(Id, ScheduledTime)>,
+    remaining: Vec<(Id, Task)>,
 }
 
-impl WorkSchedule {
-    fn new(start_date: Date, end_date: Date) -> Self {
+impl<Id> ScheduledDistribution<Id> {
+    #[must_use]
+    pub fn new(
+        transfer: Transfer,
+        schedule: Vec<(Id, ScheduledTime)>,
+        remaining: Vec<(Id, Task)>,
+    ) -> Self {
         Self {
-            start_date,
-            end_date,
+            transfer_time: transfer,
+            schedule,
+            remaining,
         }
     }
 
-    pub fn schedule<S, P, Id, F>(
-        &self,
-        mut dynamic_tasks: P,
-        mut scheduler: S,
-        fixed_scheduler: F,
-    ) -> (
-        Vec<(Id, Date, WorkingDuration)>,
-        Option<(Id, WorkingDuration)>,
-    )
-    where
-        Id: Copy,
-        P: Iterator<Item = (Id, WorkingDuration)>,
-        S: Scheduler,
-        F: Fn(Date) -> WorkingDuration,
-    {
-        let mut result = Vec::new();
+    pub fn schedule(self) -> impl IntoIterator<Item = (Id, ScheduledTime)> {
+        self.schedule
+    }
+}
 
-        assert_eq!(self.start_date.year(), self.end_date.year());
-        assert_eq!(self.start_date.month(), self.end_date.month());
-        let mut current_task = None;
+pub struct DefaultScheduler {
+    scheduler: (WorkdayScheduler, DailyLimiter),
+    month_scheduler: MonthScheduler,
+}
 
-        // schedule fixed tasks in advance
-        for date in self.start_date..=self.end_date {
-            scheduler.schedule_in_advance(date, fixed_scheduler(date));
+impl DefaultScheduler {
+    pub fn new(month: &Month) -> Self {
+        Self {
+            scheduler: (
+                WorkdayScheduler::new(),
+                // FixedScheduler::new(
+                //     |date| {
+                //         month
+                //             .entries_on_day(date)
+                //             .map(|e| e.work_duration())
+                //             .sum::<WorkingDuration>()
+                //     },
+                //     false,
+                // ),
+                DailyLimiter::default(),
+            ),
+            month_scheduler: MonthScheduler::new(
+                month.year(),
+                month.month(),
+                month.expected_working_duration(),
+            ),
         }
+    }
+}
 
-        for date in self.start_date..=self.end_date {
-            let mut possible_work_duration = scheduler.has_time_for(date, working_duration!(99:59));
+#[derive(Debug, Copy, Clone, PartialEq)]
+pub struct Task {
+    duration: WorkingDuration,
+    suggested_date: Option<Date>,
+    can_be_split: bool,
+}
 
-            // skips days where no work is possible
-            if possible_work_duration == working_duration!(00:00) {
-                continue;
-            }
-
-            if current_task.is_none() {
-                current_task = dynamic_tasks.next();
-            }
-
-            // TODO: might enable doing multiple dynamic tasks in one day?
-            if let Some((id, task_duration)) = current_task {
-                if task_duration <= possible_work_duration {
-                    result.push((id, date, task_duration));
-                    scheduler.schedule(date, task_duration);
-                    // TODO: do more work?
-                    possible_work_duration -= task_duration;
-                    current_task = None;
-                } else {
-                    result.push((id, date, possible_work_duration));
-                    scheduler.schedule(date, possible_work_duration);
-                    current_task.as_mut().unwrap().1 -= possible_work_duration;
-                    // possible_work_duration = working_duration!(00:00);
-                }
-            }
+impl Task {
+    #[must_use]
+    pub fn new(
+        duration: WorkingDuration,
+        suggested_date: Option<Date>,
+        can_be_split: bool,
+    ) -> Self {
+        Self {
+            duration,
+            suggested_date,
+            can_be_split,
         }
+    }
 
-        (result, current_task)
+    #[must_use]
+    pub fn from_duration(duration: WorkingDuration) -> Self {
+        Self::new(duration, None, true)
+    }
+
+    #[must_use]
+    pub fn with_duration(mut self, duration: WorkingDuration) -> Self {
+        self.duration = duration;
+        self
+    }
+
+    #[must_use]
+    pub fn duration(&self) -> WorkingDuration {
+        self.duration
+    }
+
+    #[must_use]
+    pub fn suggested_date(&self) -> Option<Date> {
+        self.suggested_date
+    }
+
+    #[must_use]
+    pub fn can_be_split(&self) -> bool {
+        self.can_be_split
+    }
+}
+
+impl Sub<WorkingDuration> for Task {
+    type Output = Self;
+
+    fn sub(self, rhs: WorkingDuration) -> Self::Output {
+        Self::new(self.duration - rhs, self.suggested_date, self.can_be_split)
+    }
+}
+
+impl SubAssign<WorkingDuration> for Task {
+    fn sub_assign(&mut self, rhs: WorkingDuration) {
+        self.duration -= rhs;
     }
 }
 
@@ -104,18 +148,13 @@ impl DynamicEntry {
         }
     }
 
-    pub fn distribute_fixed<Id: Copy>(
+    pub fn distribute<Id: Copy>(
         // an iterator of the durations how long each entry is and a unique id
-        durations: impl Iterator<Item = (Id, WorkingDuration)>,
+        mut entries: impl Iterator<Item = (Id, Task)>,
         month: &Month,
-    ) -> (
-        WorkingDuration,
-        Vec<(Id, Date, WorkingDuration)>,
-        Vec<(Id, WorkingDuration)>,
-    ) {
+    ) -> ScheduledDistribution<Id> {
         let mut result = Vec::new();
 
-        let mut iter_dynamic_tasks = durations;
         let mut transfer_task = None;
         let mut month_scheduler = MonthScheduler::new(
             month.year(),
@@ -125,15 +164,16 @@ impl DynamicEntry {
 
         for (_, week_dates) in month.year().iter_weeks_in(month.month()) {
             let schedule = WorkSchedule::new(*week_dates.start(), *week_dates.end());
+            let dynamic_tasks = iter::from_fn(|| {
+                if let Some((id, duration)) = transfer_task.take() {
+                    Some((id, duration))
+                } else {
+                    entries.next()
+                }
+            });
 
             let (scheduled_tasks, new_transfer_task) = schedule.schedule(
-                iter::from_fn(|| {
-                    if let Some((id, duration)) = transfer_task.take() {
-                        Some((id, duration))
-                    } else {
-                        iter_dynamic_tasks.next()
-                    }
-                }),
+                dynamic_tasks,
                 (
                     WorkdayScheduler::new(),
                     FixedScheduler::new(
@@ -167,14 +207,11 @@ impl DynamicEntry {
 
         let transfer_time = month_scheduler.transfer_time();
 
-        (
-            transfer_time.next(), // TODO: prev (remaining time is discarded)
-            result,
-            transfer_task
-                .into_iter()
-                .chain(iter_dynamic_tasks.into_iter())
-                .collect(),
-        )
+        ScheduledDistribution {
+            transfer_time,
+            schedule: result,
+            remaining: transfer_task.into_iter().chain(entries).collect(),
+        }
     }
 }
 
@@ -189,7 +226,7 @@ mod tests {
 
     use crate::input::json_input;
     use crate::input::toml_input;
-    use crate::{date, working_duration};
+    use crate::{date, transfer, working_duration};
 
     #[derive(Debug, Clone, Deserialize)]
     struct EntrySections {
@@ -287,7 +324,7 @@ mod tests {
 
         let durations = month
             .dynamic_entries()
-            .map(|(key, entry)| (ids[key], entry.duration().unwrap()));
+            .map(|(key, entry)| (ids[key], Task::from_duration(entry.duration().unwrap())));
 
         // there are no holidays in july and it has 31 days,
         // of those 5 are sundays in 2022 -> 26 working days.
@@ -306,22 +343,40 @@ mod tests {
         // the middle of the month should get the remainder of 4 minutes,
         // -> week 3 would have 04:40
         assert_eq!(
-            DynamicEntry::distribute_fixed(durations, &month,),
-            (
-                working_duration!(00:00),
+            DynamicEntry::distribute(durations, &month),
+            ScheduledDistribution::new(
+                transfer!(+00:00),
                 vec![
                     // week 1: friday
-                    (0, date!(2022:07:01), working_duration!(01:32)), // 01:32
+                    (
+                        0,
+                        ScheduledTime::new(date!(2022:07:01), working_duration!(01:32))
+                    ), // 01:32
                     // week 2: monday
-                    (0, date!(2022:07:04), working_duration!(04:36)), // 06:08
+                    (
+                        0,
+                        ScheduledTime::new(date!(2022:07:04), working_duration!(04:36))
+                    ), // 06:08
                     // week 3: monday
-                    (0, date!(2022:07:11), working_duration!(04:40)), // 10:48
+                    (
+                        0,
+                        ScheduledTime::new(date!(2022:07:11), working_duration!(04:40))
+                    ), // 10:48
                     // week 4: monday
-                    (0, date!(2022:07:18), working_duration!(01:55)), // 12:43
+                    (
+                        0,
+                        ScheduledTime::new(date!(2022:07:18), working_duration!(01:55))
+                    ), // 12:43
                     // week 4: tuesday
-                    (1, date!(2022:07:19), working_duration!(02:41)), // 02:41
+                    (
+                        1,
+                        ScheduledTime::new(date!(2022:07:19), working_duration!(02:41))
+                    ), // 02:41
                     // week 5: monday
-                    (1, date!(2022:07:25), working_duration!(04:36)), // 07:17
+                    (
+                        1,
+                        ScheduledTime::new(date!(2022:07:25), working_duration!(04:36))
+                    ), // 07:17
                 ],
                 vec![]
             )
@@ -361,7 +416,7 @@ mod tests {
 
         let durations = month
             .dynamic_entries()
-            .map(|(key, entry)| (ids[key], entry.duration().unwrap()));
+            .map(|(key, entry)| (ids[key], Task::from_duration(entry.duration().unwrap())));
 
         // there are no holidays in july and it has 31 days,
         // of those 5 are sundays in 2022 -> 26 working days.
@@ -382,24 +437,39 @@ mod tests {
         // week 3 has a static entry, which takes up 5:21 hours (00:41 too much)
         // -> the week 4 will only get 04:36 - 00:41 = 03:55
         assert_eq!(
-            DynamicEntry::distribute_fixed(durations, &month),
-            (
-                working_duration!(00:00),
+            DynamicEntry::distribute(durations, &month),
+            ScheduledDistribution::new(
+                transfer!(+00:00),
                 vec![
                     // week 1: friday
-                    (0, date!(2022:07:01), working_duration!(01:32)), // 01:32
+                    (
+                        0,
+                        ScheduledTime::new(date!(2022:07:01), working_duration!(01:32))
+                    ), // 01:32
                     // week 2: monday
-                    (0, date!(2022:07:04), working_duration!(04:36)), // 06:08
+                    (
+                        0,
+                        ScheduledTime::new(date!(2022:07:04), working_duration!(04:36))
+                    ), // 06:08
                     // week 4: monday
-                    (0, date!(2022:07:18), working_duration!(03:55)), // 10:03
+                    (
+                        0,
+                        ScheduledTime::new(date!(2022:07:18), working_duration!(03:55))
+                    ), // 10:03
                     // week 5: monday
-                    (0, date!(2022:07:25), working_duration!(02:40)), // 12:43
+                    (
+                        0,
+                        ScheduledTime::new(date!(2022:07:25), working_duration!(02:40))
+                    ), // 12:43
                     // week 5: tuesday
-                    (1, date!(2022:07:26), working_duration!(01:56)),
+                    (
+                        1,
+                        ScheduledTime::new(date!(2022:07:26), working_duration!(01:56))
+                    ),
                     // at this point the working limit has been reached
                     // -> the rest must be transferred to the next month
                 ],
-                vec![(1, working_duration!(05:21)),]
+                vec![(1, Task::from_duration(working_duration!(05:21)))]
             )
         );
     }

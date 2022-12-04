@@ -5,7 +5,7 @@ use serde::ser;
 use serde::Serialize;
 
 use crate::input::json_input::{Entry, MonthFile};
-use crate::input::toml_input::{DynamicEntry, Transfer};
+use crate::input::toml_input::{DynamicEntry, Task, Transfer};
 use crate::time::{self, Date, WeekDay, WorkingDuration, Year};
 use crate::{time_stamp, working_duration};
 
@@ -142,18 +142,19 @@ impl Month {
         for (action, dynamic_entry) in self.dynamic_entries() {
             if let Some(duration) = dynamic_entry.duration() {
                 mapping.push((action, dynamic_entry));
-                durations.push((mapping.len() - 1, duration));
+                durations.push((mapping.len() - 1, Task::from_duration(duration)));
             }
         }
 
-        let (_transfer, results, _transfer_tasks) =
-            DynamicEntry::distribute_fixed(durations.into_iter(), self);
+        let distribution = DynamicEntry::distribute(durations.into_iter(), self);
 
         // TODO: what to do with the transfer_tasks and transfer?
 
-        for (id, date, duration) in results {
+        for (id, time) in distribution.schedule() {
             let (action, _dynamic_entry) = mapping[id];
             let mut pause = None;
+            let duration = time.duration();
+            let date = time.date();
 
             // TODO: make it possible to configure this?
             // TODO: automagically add pauses for too long fixed entries?
