@@ -2,6 +2,7 @@ use crate::input::scheduler::Scheduler;
 use crate::time::{Date, WorkingDuration};
 use crate::working_duration;
 
+#[derive(Clone, Debug, PartialEq)]
 pub struct FixedScheduler<F> {
     f: F,
     should_mix: bool,

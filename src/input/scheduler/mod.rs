@@ -1,4 +1,5 @@
 mod daily_limiter;
+mod default_scheduler;
 mod fixed_scheduler;
 mod month_scheduler;
 mod time_span;
@@ -6,6 +7,7 @@ mod work_schedule;
 mod workday_scheduler;
 
 pub use daily_limiter::*;
+pub use default_scheduler::*;
 pub use fixed_scheduler::*;
 pub use month_scheduler::*;
 pub use time_span::*;

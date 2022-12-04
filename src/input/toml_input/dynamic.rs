@@ -3,7 +3,7 @@ use std::ops::{Sub, SubAssign};
 
 use serde::Deserialize;
 
-use crate::input::scheduler::{DailyLimiter, FixedScheduler, MonthScheduler, WorkdayScheduler};
+use crate::input::scheduler::DefaultScheduler;
 use crate::input::scheduler::{ScheduledTime, WorkSchedule};
 use crate::input::{Month, Transfer};
 use crate::time::{Date, WorkingDuration};
@@ -44,36 +44,6 @@ impl<Id> ScheduledDistribution<Id> {
 
     pub fn schedule(self) -> impl IntoIterator<Item = (Id, ScheduledTime)> {
         self.schedule
-    }
-}
-
-pub struct DefaultScheduler {
-    scheduler: (WorkdayScheduler, DailyLimiter),
-    month_scheduler: MonthScheduler,
-}
-
-impl DefaultScheduler {
-    pub fn new(month: &Month) -> Self {
-        Self {
-            scheduler: (
-                WorkdayScheduler::new(),
-                // FixedScheduler::new(
-                //     |date| {
-                //         month
-                //             .entries_on_day(date)
-                //             .map(|e| e.work_duration())
-                //             .sum::<WorkingDuration>()
-                //     },
-                //     false,
-                // ),
-                DailyLimiter::default(),
-            ),
-            month_scheduler: MonthScheduler::new(
-                month.year(),
-                month.month(),
-                month.expected_working_duration(),
-            ),
-        }
     }
 }
 
@@ -156,11 +126,7 @@ impl DynamicEntry {
         let mut result = Vec::new();
 
         let mut transfer_task = None;
-        let mut month_scheduler = MonthScheduler::new(
-            month.year(),
-            month.month(),
-            month.expected_working_duration(),
-        );
+        let mut scheduler = DefaultScheduler::new(month);
 
         for (_, week_dates) in month.year().iter_weeks_in(month.month()) {
             let schedule = WorkSchedule::new(*week_dates.start(), *week_dates.end());
@@ -172,29 +138,13 @@ impl DynamicEntry {
                 }
             });
 
-            let (scheduled_tasks, new_transfer_task) = schedule.schedule(
-                dynamic_tasks,
-                (
-                    WorkdayScheduler::new(),
-                    FixedScheduler::new(
-                        |date| {
-                            month
-                                .entries_on_day(date)
-                                .map(|e| e.work_duration())
-                                .sum::<WorkingDuration>()
-                        },
-                        false,
-                    ),
-                    DailyLimiter::default(),
-                    &mut month_scheduler,
-                ),
-                |date| {
+            let (scheduled_tasks, new_transfer_task) =
+                schedule.schedule(dynamic_tasks, &mut scheduler, |date| {
                     month
                         .entries_on_day(date)
                         .map(|e| e.work_duration())
                         .sum::<WorkingDuration>()
-                },
-            );
+                });
 
             assert!(transfer_task.is_none() || new_transfer_task.is_none());
 
@@ -205,10 +155,8 @@ impl DynamicEntry {
             result.extend(scheduled_tasks);
         }
 
-        let transfer_time = month_scheduler.transfer_time();
-
         ScheduledDistribution {
-            transfer_time,
+            transfer_time: scheduler.transfer_time(),
             schedule: result,
             remaining: transfer_task.into_iter().chain(entries).collect(),
         }

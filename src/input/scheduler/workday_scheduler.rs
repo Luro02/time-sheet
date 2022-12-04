@@ -3,6 +3,7 @@ use crate::time::{Date, WorkingDuration};
 use crate::working_duration;
 
 /// A scheduler that schedules work exclusively on workdays.
+#[derive(Clone, Debug, PartialEq, Default)]
 pub struct WorkdayScheduler {}
 
 impl WorkdayScheduler {

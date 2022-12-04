@@ -3,6 +3,7 @@ use crate::input::Scheduler;
 use crate::time::{Date, WorkingDuration};
 use crate::{min, working_duration};
 
+#[derive(Clone, Debug, PartialEq)]
 pub(crate) struct WorkSchedule {
     /// The start date of the work schedule.
     start_date: Date,
