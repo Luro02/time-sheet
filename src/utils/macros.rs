@@ -85,3 +85,18 @@ macro_rules! duration {
         )
     }};
 }
+
+#[macro_export]
+macro_rules! map {
+    ( $( $key:expr => $value:expr ),+ $(,)? ) => {
+        {
+            let mut _map = ::std::collections::HashMap::new();
+
+            $(
+                _map.insert($key, $value);
+            )+
+
+            _map
+        }
+    };
+}

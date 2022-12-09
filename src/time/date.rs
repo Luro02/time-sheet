@@ -1,13 +1,11 @@
 use core::fmt;
 use core::iter::Step;
-use core::ops::Add;
-use std::ops::AddAssign;
+use core::ops::{Add, AddAssign, Sub, SubAssign};
 use std::str::FromStr;
 
 use serde::Deserialize;
 use thiserror::Error;
 
-use crate::iter_const;
 use crate::time::{Month, WeekDay, Year};
 use crate::utils::StrExt;
 
@@ -42,20 +40,6 @@ pub struct InvalidDate {
     month: Month,
     day: usize,
 }
-
-/*
-const fn cumulative_days_in_month_common_leap() -> [[u16; 11]; 2] {
-
-    let mut result = [[0; 11]; 2];
-
-    let sum = 0;
-    iter_const!(for month in 0,..12 => {
-        let month = Month::months()[month - 1];
-        result
-    });
-
-    result
-}*/
 
 impl Date {
     pub fn new(year: impl Into<Year>, month: Month, day: usize) -> Result<Self, InvalidDate> {
@@ -213,53 +197,104 @@ impl Date {
         !self.is_holiday() && !self.week_day().is_eq(&WeekDay::Sunday)
     }
 
+    #[must_use]
     const fn ordinal(&self) -> u16 {
         let mut result = 0;
 
-        let mut current_month = Month::January;
-        while !self.month().is_eq(&current_month) {
-            result += self.year().number_of_days_in_month(current_month) as u16;
-            current_month = current_month.next();
-        }
+        // -1 to get the index of the previous month
+        // will not cause a panic, because the first month
+        // (january) has the number 1
+        result += self.year().cumulative_days()[self.month().as_usize() - 1] as u16;
 
         result + self.day() as u16
-    }
-
-    const fn days_since_base_date(&self) -> usize {
-        self.year.days_since_base_date() + self.ordinal() as usize
-    }
-
-    #[must_use]
-    const fn add_days(mut self, days: usize) -> Self {
-        iter_const!(for _i in 0,..days => {
-            self.day += 1;
-            if self.day > self.year().number_of_days_in_month(self.month()) {
-                if self.month.is_eq(&Month::December) {
-                    self.year = self.year.next();
-                }
-
-                self.month = self.month().next();
-                self.day = 1;
-            }
-        });
-
-        self
-    }
-
-    #[must_use]
-    const fn from_days_since_base_date(days: usize) -> Self {
-        let year = Year::from_days_since_base_date(days);
-        let ordinal = days - year.days_since_base_date();
-        Self::from_ordinal(year, ordinal as u16)
     }
 
     #[must_use]
     const fn from_ordinal(year: Year, ordinal: u16) -> Self {
         if year.days() < ordinal as usize || ordinal == 0 {
-            panic!("Invalid ordinal for year");
+            const_panic::concat_panic!(
+                "Invalid ordinal `",
+                ordinal,
+                "` for year ",
+                year.as_usize(),
+                " with ",
+                year.days(),
+                " days."
+            );
         }
 
-        Self::first_day(year, Month::January).add_days((ordinal - 1) as usize)
+        let cumulative_days = year.cumulative_days();
+
+        // this is in O(1) as the number of months is bounded by 12
+        // under the assumption that the compiler is smart enough to
+        // understand that .next() is not causing an infinite loop
+        let mut current_month = Month::January;
+        while !current_month.is_eq(&Month::December)
+            && cumulative_days[current_month.as_usize()] < ordinal as usize
+        {
+            current_month = current_month.next();
+        }
+
+        let day = ordinal as usize - cumulative_days[current_month.as_usize() - 1];
+
+        Self {
+            year,
+            month: current_month,
+            day,
+        }
+    }
+
+    #[must_use]
+    const fn days_since_base_date(&self) -> usize {
+        // the ordinal of the first day of the year is 1.
+        // when one does not subtract 1, then
+        // date!(0000:01:01).days_since_base_date()
+        // = 0 + 1 (because ordinal is 1)
+        //
+        // but this is not correct => one has to subtract 1
+        self.year.days_since_base_date() + (self.ordinal() - 1) as usize
+    }
+
+    #[must_use]
+    const fn add_days(self, days: usize) -> Self {
+        let mut ordinal = self.ordinal() as usize + days;
+        let mut year = self.year();
+
+        // TODO: could this be calculated in O(1)?
+        while ordinal > year.days() {
+            ordinal -= year.days();
+            year = year.next();
+        }
+
+        Self::from_ordinal(year, ordinal as u16)
+    }
+
+    #[must_use]
+    const fn sub_days(self, days: usize) -> Self {
+        let mut ordinal = self.ordinal() as usize;
+        let mut year = self.year();
+
+        while ordinal < days {
+            year = year.prev();
+            ordinal += year.days();
+        }
+
+        if ordinal == days {
+            year = year.prev();
+            ordinal = year.days();
+        } else {
+            ordinal -= days;
+        }
+
+        Self::from_ordinal(year, ordinal as u16)
+    }
+
+    #[must_use]
+    const fn from_days_since_base_date(days: usize) -> Self {
+        let year = Year::from_days_since_base_date(days);
+        // NOTE: +1 because the ordinal of the first day of the year is 1 and not 0
+        let ordinal = (days - year.days_since_base_date()) + 1;
+        Self::from_ordinal(year, ordinal as u16)
     }
 
     /// Returns the date when the next week starts or `None` if the next week
@@ -274,6 +309,77 @@ impl Date {
             None
         }
     }
+
+    /// Returns the number of days that have passed between `self` and `other`.
+    ///
+    /// `self + self.days_until(other) == other`
+    ///
+    /// # Panics
+    ///
+    /// This function assumes that `self` is before `other`.
+    /// If this is not the case, it will panic.
+    #[must_use]
+    pub const fn days_until(&self, other: Self) -> usize {
+        other.days_since_base_date() - self.days_since_base_date()
+    }
+
+    /// Returns the number of years that have passed between `self` and `other`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use time_sheet::time::Date;
+    /// # use time_sheet::date;
+    /// assert_eq!(
+    ///     date!(2022:01:01).years_until(date!(2023:01:01)),
+    ///     1
+    /// );
+    /// ```
+    ///
+    /// # Panics
+    ///
+    /// This function assumes that `self` is before `other`.
+    /// If this is not the case, it will panic.
+    #[must_use]
+    pub const fn years_until(&self, other: Self) -> usize {
+        let mut years = other.year().as_usize() - self.year().as_usize();
+
+        if self.month().as_usize() > other.month().as_usize()
+            || (self.month().is_eq(&other.month()) && self.day() > other.day())
+        {
+            years -= 1;
+        }
+
+        years
+    }
+
+    /// Returns the number of months that have passed between `self` and `other`.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use time_sheet::time::Date;
+    /// # use time_sheet::date;
+    /// assert_eq!(
+    ///     date!(2022:01:01).months_until(date!(2022:02:01)),
+    ///     1
+    /// );
+    /// ```
+    ///
+    /// # Panics
+    ///
+    /// This function assumes that `self` is before `other`.
+    /// If this is not the case, it will panic.
+    #[must_use]
+    pub const fn months_until(&self, other: Self) -> usize {
+        let previous_months = self.years_until(other) * 12;
+
+        if self.day() <= other.day() {
+            previous_months + other.month().as_usize() - self.month().as_usize()
+        } else {
+            previous_months + other.month().as_usize() - self.month().as_usize() - 1
+        }
+    }
 }
 
 impl Add<usize> for Date {
@@ -281,6 +387,20 @@ impl Add<usize> for Date {
 
     fn add(self, days: usize) -> Self::Output {
         self.add_days(days)
+    }
+}
+
+impl Sub<usize> for Date {
+    type Output = Self;
+
+    fn sub(self, days: usize) -> Self::Output {
+        self.sub_days(days)
+    }
+}
+
+impl SubAssign<usize> for Date {
+    fn sub_assign(&mut self, days: usize) {
+        *self = *self - days;
     }
 }
 
@@ -372,7 +492,7 @@ mod tests {
     use std::ops::RangeInclusive;
 
     #[test]
-    fn test_date() {
+    fn test_date_to_string() {
         //
         assert_eq!(
             Date::new(Year::new(2022), Month::January, 31).map(|d| d.to_string()),
@@ -414,6 +534,57 @@ mod tests {
 
         assert_eq!(date!(2022:12:24).add_days(8), date!(2023:01:01));
         assert_eq!(date!(2022:12:24).add_days(8 + 365), date!(2024:01:01));
+    }
+
+    #[test]
+    fn test_sub_days() {
+        assert_eq!(
+            Date::from_days_since_base_date(date!(2022:12:31).days_since_base_date() + 1),
+            date!(2023:01:01)
+        );
+        assert_eq!(
+            Date::from_days_since_base_date(date!(2022:12:31).days_since_base_date() + 2),
+            date!(2023:01:02)
+        );
+
+        assert_eq!(date!(2022:01:01).sub_days(0), date!(2022:01:01));
+
+        assert_eq!(date!(2024:01:01).sub_days(0), date!(2024:01:01));
+        assert_eq!(date!(2024:01:01).sub_days(1), date!(2023:12:31));
+        assert_eq!(date!(2024:01:01).sub_days(2), date!(2023:12:30));
+        assert_eq!(date!(2024:01:01).sub_days(364), date!(2023:01:02));
+        assert_eq!(date!(2024:01:01).sub_days(365), date!(2023:01:01));
+        assert_eq!(date!(2024:01:01).sub_days(729), date!(2022:01:02));
+        assert_eq!(date!(2024:01:01).sub_days(730), date!(2022:01:01));
+
+        let start = date!(2020:01:01);
+        for (passed_days, date) in (start..=date!(2024:12:31)).enumerate() {
+            assert_eq!(
+                date.sub_days(passed_days),
+                start,
+                "expected `{}` - `{}` = `{}`, but got `{}`",
+                date,
+                passed_days,
+                start,
+                date.sub_days(passed_days)
+            );
+        }
+    }
+
+    // TODO: write tests that
+    // - (a + b) - b = a
+    // - (a - b) + b = a
+    // - a + (b - c) = (a + b) - c
+    // - a - (b - c) = (a - b) + c
+
+    #[test]
+    fn test_add_sub_identity() {
+        for a in date!(2022:01:01)..=date!(2024:12:31) {
+            for b in 0..=999 {
+                assert_eq!(a.add_days(b).sub_days(b), a);
+                assert_eq!(a.sub_days(b).add_days(b), a);
+            }
+        }
     }
 
     #[test]

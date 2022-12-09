@@ -118,6 +118,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "const_panic"
+version = "0.2.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "58baae561b85ca19b3122a9ddd35c8ec40c3bcd14fe89921824eae73f7baffbf"
+dependencies = [
+ "konst_kernel",
+]
+
+[[package]]
 name = "convert_case"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -256,6 +265,12 @@ name = "itoa"
 version = "0.4.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b71991ff56294aa922b450139ee08b3bfc70982c6b2c7562771375cf73542dd4"
+
+[[package]]
+name = "konst_kernel"
+version = "0.3.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7771682454392dfe62a909aba2c6efc6674e2ad0b678fbc33b154e2e1bd59b89"
 
 [[package]]
 name = "libc"
@@ -641,11 +656,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "time"
+version = "0.3.17"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a561bf4617eebd33bca6434b988f39ed798e527f51a1e797d0ee4f61c0a38376"
+dependencies = [
+ "time-core",
+]
+
+[[package]]
+name = "time-core"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2e153e1f1acaef8acc537e68b44906d2db6436e2b35ac2c6b42640fff91f00fd"
+
+[[package]]
 name = "time-sheet"
 version = "0.1.0"
 dependencies = [
  "anyhow",
  "color-backtrace",
+ "const_panic",
  "derive_more",
  "fs_extra",
  "indexmap",
@@ -660,6 +691,7 @@ dependencies = [
  "static_assertions",
  "tempfile",
  "thiserror",
+ "time",
  "toml",
  "v_latexescape",
 ]

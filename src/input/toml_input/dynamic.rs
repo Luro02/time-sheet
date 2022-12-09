@@ -174,25 +174,11 @@ mod tests {
 
     use crate::input::json_input;
     use crate::input::toml_input;
-    use crate::{date, transfer, working_duration};
+    use crate::{date, map, transfer, working_duration};
 
     #[derive(Debug, Clone, Deserialize)]
     struct EntrySections {
         pub entry: HashMap<String, DynamicEntry>,
-    }
-
-    macro_rules! map {
-        ( $( $key:expr => $value:expr ),+ $(,)? ) => {
-            {
-                let mut _map = ::std::collections::HashMap::new();
-
-                $(
-                    _map.insert($key, $value);
-                )+
-
-                _map
-            }
-        };
     }
 
     #[test]

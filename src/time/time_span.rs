@@ -31,6 +31,14 @@ impl TimeSpan {
 
         Some(overlap_window_start.elapsed(&overlap_window_end))
     }
+
+    pub const fn start(&self) -> TimeStamp {
+        self.start
+    }
+
+    pub const fn end(&self) -> TimeStamp {
+        self.end
+    }
 }
 
 #[cfg(test)]

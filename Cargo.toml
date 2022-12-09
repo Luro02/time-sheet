@@ -22,6 +22,9 @@ rust-embed = "6.2"
 fs_extra = "1.2"
 v_latexescape = "0.13"
 static_assertions = "1.1"
+# can be removed once const-fns panic can have arguments
+const_panic = "0.2"
+
 # make backtraces beautiful
 color-backtrace = "0.5"
 indexmap = { version = "1.9", features = ["serde"] }
@@ -35,3 +38,4 @@ seahorse = "1.1"
 
 [dev-dependencies]
 pretty_assertions = "1.0"
+time = { version = "0.3", default-features = false }

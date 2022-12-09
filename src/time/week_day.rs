@@ -1,6 +1,10 @@
 use std::ops::Add;
+use std::str::FromStr;
 
-#[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Eq, Ord)]
+use serde::Deserialize;
+
+#[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Eq, Ord, Deserialize)]
+#[serde(try_from = "String")]
 pub enum WeekDay {
     Monday = 1,
     Tuesday = 2,
@@ -75,6 +79,33 @@ impl TryFrom<usize> for WeekDay {
             .into_iter()
             .find(|v| *v as usize == value)
             .ok_or(InvalidWeekDayNumber)
+    }
+}
+
+impl FromStr for WeekDay {
+    type Err = anyhow::Error;
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        let value = value.to_lowercase();
+
+        match value.as_str() {
+            "monday" => Ok(Self::Monday),
+            "tuesday" => Ok(Self::Tuesday),
+            "wednesday" => Ok(Self::Wednesday),
+            "thursday" => Ok(Self::Thursday),
+            "friday" => Ok(Self::Friday),
+            "saturday" => Ok(Self::Saturday),
+            "sunday" => Ok(Self::Sunday),
+            _ => Err(anyhow::anyhow!("Invalid week day: {}", value)),
+        }
+    }
+}
+
+impl TryFrom<String> for WeekDay {
+    type Error = <Self as FromStr>::Err;
+
+    fn try_from(value: String) -> Result<Self, Self::Error> {
+        Self::from_str(&value)
     }
 }
 

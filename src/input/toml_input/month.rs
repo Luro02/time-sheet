@@ -42,6 +42,10 @@ impl Month {
         self.transfer.as_ref()
     }
 
+    pub fn add_entries(&mut self, entries: impl IntoIterator<Item = (Key, EitherEntry)>) {
+        self.entries.extend(entries);
+    }
+
     pub fn entries(&self, monthly_time: WorkingDuration) -> impl Iterator<Item = (Key, Entry)> {
         let iter = self
             .holiday

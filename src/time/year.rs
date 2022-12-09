@@ -167,6 +167,11 @@ impl Year {
         Self(self.0 + 1)
     }
 
+    #[must_use]
+    pub const fn prev(&self) -> Self {
+        Self(self.0 - 1)
+    }
+
     pub fn iter_days_in(&self, month: Month) -> RangeInclusive<Date> {
         Date::first_day(*self, month)..=Date::last_day(*self, month)
     }
@@ -187,6 +192,42 @@ impl Year {
 
                 (result, current_week)
             })
+    }
+
+    /// Returns an array with the sum of all days in the previous months.
+    ///
+    /// # Examples
+    ///
+    /// For a normal year the returned array will always be
+    /// ```rust
+    /// # use time_sheet::time::Year;
+    /// #
+    /// let year = Year::new(2021);
+    /// assert_eq!(
+    ///     year.cumulative_days(),
+    ///     [0, 31, 59, 90, 120, 151, 181, 212, 243, 273, 304, 334, 365]
+    /// );
+    /// ```
+    ///
+    /// For a leap year the returned array will always be
+    /// ```rust
+    /// # use time_sheet::time::Year;
+    /// #
+    /// let year = Year::new(2020);
+    /// assert_eq!(
+    ///    year.cumulative_days(),
+    ///   [0, 31, 60, 91, 121, 152, 182, 213, 244, 274, 305, 335, 366]
+    /// );
+    /// ```
+    #[must_use]
+    pub const fn cumulative_days(&self) -> [usize; 13] {
+        let mut result = [0; 13];
+
+        iter_const!(for month in Month::January.as_usize(),..Month::December.as_usize() + 1 => {
+            result[month] = result[month - 1] + self.number_of_days_in_month(Month::new(month));
+        });
+
+        result
     }
 }
 
@@ -373,6 +414,29 @@ mod tests {
 
     #[test]
     fn test_from_days_since_base_date() {
+        fn days_since_time_date(base: time::Date, date: time::Date) -> u64 {
+            (date - base).whole_hours() as u64 / 24
+        }
+
+        assert_eq!(
+            days_since_time_date(
+                time::Date::from_calendar_date(0, time::Month::January, 1).unwrap(),
+                time::Date::from_calendar_date(2023, time::Month::January, 1).unwrap()
+            ),
+            738886
+        );
+
+        assert_eq!(
+            days_since_time_date(
+                time::Date::from_calendar_date(0, time::Month::January, 1).unwrap(),
+                time::Date::from_calendar_date(2023, time::Month::January, 3).unwrap()
+            ),
+            738886 + 2
+        );
+
+        assert_eq!(Year::from_days_since_base_date(738886), Year::new(2023));
+        assert_eq!(Year::new(2023).days_since_base_date(), 738886);
+
         for year in Year::new(0)..=Year::new(3000) {
             let days_since_base_date = year.days_since_base_date();
             assert_eq!(
@@ -382,6 +446,19 @@ mod tests {
                 days_since_base_date,
                 year
             );
+        }
+
+        let mut expected_days_since_base_date = 0;
+        for year in Year::new(0)..=Year::new(3000) {
+            let days_since_base_date = year.days_since_base_date();
+
+            assert_eq!(
+                days_since_base_date, expected_days_since_base_date,
+                "{} days since base date should be {}",
+                days_since_base_date, expected_days_since_base_date
+            );
+
+            expected_days_since_base_date += year.days();
         }
     }
 

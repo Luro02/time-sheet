@@ -17,6 +17,12 @@ impl MultiEntry {
     }
 }
 
+impl From<Vec<Entry>> for MultiEntry {
+    fn from(entries: Vec<Entry>) -> Self {
+        Self { entries }
+    }
+}
+
 #[derive(Debug, Clone, Deserialize)]
 pub struct Entry {
     action: String,

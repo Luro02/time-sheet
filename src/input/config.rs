@@ -162,10 +162,15 @@ impl Config {
         global: impl AsRef<Path>,
         department: impl Into<String>,
     ) -> anyhow::Result<ConfigBuilder> {
-        let month: toml_input::Month = toml_from_reader(File::open(month.as_ref())?)
+        let mut month: toml_input::Month = toml_from_reader(File::open(month.as_ref())?)
             .with_context(|| format!("failed to parse `{}`", month.as_ref().display()))?;
         let global: toml_input::Global = toml_from_reader(File::open(global.as_ref())?)
             .with_context(|| format!("failed to parse `{}`", global.as_ref().display()))?;
+
+        // add the repeating entries that apply from the global file to the month
+        month.add_entries(
+            global.repeating_in_month(month.general().year(), month.general().month()),
+        );
 
         let department = department.into();
         let about = global.about();
