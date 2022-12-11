@@ -20,6 +20,7 @@ pub struct Config {
     output: PathBuf,
     preserve_dir: Option<PathBuf>,
     month: Month,
+    latex_mk_path: Option<PathBuf>,
 }
 
 pub struct ConfigBuilder {
@@ -33,6 +34,7 @@ pub struct ConfigBuilder {
     absences: Vec<(Date, Absence)>,
     holiday: Option<Holiday>,
     repeating: Vec<Entry>,
+    latex_mk_path: Option<PathBuf>,
 }
 
 fn toml_from_reader<R, T>(reader: R) -> anyhow::Result<T>
@@ -59,6 +61,7 @@ impl ConfigBuilder {
             absences: Vec::new(),
             holiday: None,
             repeating: Vec::new(),
+            latex_mk_path: None,
         }
     }
 
@@ -89,6 +92,11 @@ impl ConfigBuilder {
 
     pub fn workspace(&mut self, workspace: impl Into<PathBuf>) -> &mut Self {
         self.workspace = Some(workspace.into());
+        self
+    }
+
+    pub fn latex_mk_path(&mut self, path: PathBuf) -> &mut Self {
+        self.latex_mk_path = Some(path);
         self
     }
 
@@ -147,6 +155,7 @@ impl ConfigBuilder {
             signature: self.signature,
             output,
             preserve_dir: self.preserve_dir,
+            latex_mk_path: self.latex_mk_path,
         }
     }
 }
@@ -195,6 +204,7 @@ impl Config {
     ) -> anyhow::Result<ConfigBuilder> {
         let department = department.into();
         let about = global.about();
+        let latex_mk_path = global.latex_mk_path();
         let contract = global
             .contract(&department)
             .ok_or_else(|| anyhow::anyhow!("no contract for department `{}`", department))?;
@@ -240,8 +250,13 @@ impl Config {
             .absences(absences)
             .holiday(holiday)
             .repeating(repeating);
+
         if let Some(signature) = signature {
             builder.signature(signature);
+        }
+
+        if let Some(path) = latex_mk_path {
+            builder.latex_mk_path(path.to_path_buf());
         }
 
         Ok(builder)
@@ -282,6 +297,10 @@ impl Config {
 
     pub fn month(&self) -> &Month {
         &self.month
+    }
+
+    pub fn latex_mk_path(&self) -> Option<&Path> {
+        self.latex_mk_path.as_deref()
     }
 
     pub fn write_global_json(&self, path: impl AsRef<Path>) -> anyhow::Result<()> {

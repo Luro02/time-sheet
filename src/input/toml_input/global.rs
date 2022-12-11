@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::path::{Path, PathBuf};
 
 use indexmap::IndexMap;
 use serde::Deserialize;
@@ -7,8 +8,14 @@ use crate::input::toml_input::{About, Contract, EitherEntry, Entry, Key, Repeati
 use crate::time::{Date, Month, Year};
 
 #[derive(Debug, Clone, Deserialize)]
+pub struct Config {
+    latex_mk_path: Option<PathBuf>,
+}
+
+#[derive(Debug, Clone, Deserialize)]
 pub struct Global {
     about: About,
+    config: Option<Config>,
     contract: HashMap<String, Contract>,
     #[serde(default)]
     repeating: IndexMap<String, RepeatingEvent>,
@@ -23,6 +30,13 @@ impl Global {
     #[must_use]
     pub fn contract(&self, department: &str) -> Option<&Contract> {
         self.contract.get(department)
+    }
+
+    #[must_use]
+    pub fn latex_mk_path(&self) -> Option<&Path> {
+        self.config
+            .as_ref()
+            .and_then(|config| config.latex_mk_path.as_deref())
     }
 
     pub fn repeating_in_month(

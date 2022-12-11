@@ -32,7 +32,7 @@ pub struct Month {
     holiday: Option<Holiday>,
     #[serde(default)]
     entries: IndexMap<Key, EitherEntry>,
-    // TODO: test this, so it crashes when missing? #[serde(default)] should be present
+    #[serde(default)]
     dynamic: IndexMap<String, DynamicEntry>,
     #[serde(default)]
     absence: IndexMap<Key, Absence>,
@@ -62,8 +62,7 @@ impl Month {
         self.dynamic.iter()
     }
 
-    // TODO: use make_date?
-    pub fn make_date(&self, day: usize) -> Date {
+    fn make_date(&self, day: usize) -> Date {
         Date::new(self.general.year(), self.general.month(), day).expect("failed to make date")
     }
 

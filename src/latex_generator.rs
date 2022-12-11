@@ -109,6 +109,10 @@ impl<'a> LatexGenerator<'a> {
             Resources::get(logo_file).unwrap().data.as_ref(),
         )?;
 
+        if let Some(path) = self.config.latex_mk_path() {
+            renderer.latex_mk_path(path);
+        }
+
         // add the signature image, if it is present
         if let Some(signature) = self.config.signature() {
             let new_path = signature.path().file_name().unwrap();
