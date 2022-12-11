@@ -210,6 +210,7 @@ repeats = "weekly" # "daily", "monthly", "yearly"
 enum InternalRepeatingEvent {
     WeekDays { repeats_on: Vec<WeekDay> },
     FixedStart { start_date: Date },
+    FixedDates { dates: Vec<Date> },
 }
 
 impl InternalRepeatingEvent {
@@ -217,6 +218,7 @@ impl InternalRepeatingEvent {
         match self {
             Self::WeekDays { repeats_on } => repeats_on.clone().into_iter(),
             Self::FixedStart { .. } => vec![].into_iter(),
+            Self::FixedDates { .. } => vec![].into_iter(),
         }
     }
 }
@@ -269,12 +271,17 @@ impl RepeatingEvent {
         TimeSpan::new(self.start, self.end)
     }
 
+    #[must_use]
     pub fn repeats_on(&self, date: Date) -> bool {
+        if let InternalRepeatingEvent::FixedDates { dates } = &self.internal {
+            return dates.contains(&date);
+        }
+
         self.to_custom().applies_on(date)
     }
 
     #[must_use]
-    pub fn to_custom(&self) -> CustomRepeatInterval {
+    fn to_custom(&self) -> CustomRepeatInterval {
         let start_date = {
             match &self.internal {
                 InternalRepeatingEvent::WeekDays { repeats_on } => {
@@ -284,6 +291,7 @@ impl RepeatingEvent {
                     start_date + (first_week_day.as_usize() - 1)
                 }
                 InternalRepeatingEvent::FixedStart { start_date } => *start_date,
+                InternalRepeatingEvent::FixedDates { .. } => unimplemented!("not supported"),
             }
         };
 
