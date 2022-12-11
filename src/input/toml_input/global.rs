@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use indexmap::IndexMap;
 use serde::Deserialize;
 
 use crate::input::toml_input::{About, Contract, EitherEntry, Entry, Key, RepeatingEvent};
@@ -9,7 +10,8 @@ use crate::time::{Date, Month, Year};
 pub struct Global {
     about: About,
     contract: HashMap<String, Contract>,
-    repeating: HashMap<String, RepeatingEvent>,
+    #[serde(default)]
+    repeating: IndexMap<String, RepeatingEvent>,
 }
 
 impl Global {
