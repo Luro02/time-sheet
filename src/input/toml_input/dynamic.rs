@@ -6,7 +6,7 @@ use serde::Deserialize;
 use crate::input::scheduler::DefaultScheduler;
 use crate::input::scheduler::{ScheduledTime, WorkSchedule};
 use crate::input::{Month, Transfer};
-use crate::time::{Date, WorkingDuration};
+use crate::time::{Date, TimeStamp, WorkingDuration};
 
 #[derive(Debug, Clone, PartialEq, Deserialize)]
 #[serde(untagged)]
@@ -52,6 +52,7 @@ pub struct Task {
     duration: WorkingDuration,
     suggested_date: Option<Date>,
     can_be_split: bool,
+    start: Option<TimeStamp>,
 }
 
 impl Task {
@@ -65,6 +66,22 @@ impl Task {
             duration,
             suggested_date,
             can_be_split,
+            start: None,
+        }
+    }
+
+    #[must_use]
+    pub fn new_with_start(
+        duration: WorkingDuration,
+        suggested_date: Option<Date>,
+        can_be_split: bool,
+        start: TimeStamp,
+    ) -> Self {
+        Self {
+            duration,
+            suggested_date,
+            can_be_split,
+            start: Some(start),
         }
     }
 
@@ -92,6 +109,11 @@ impl Task {
     #[must_use]
     pub fn can_be_split(&self) -> bool {
         self.can_be_split
+    }
+
+    #[must_use]
+    pub const fn suggested_start(&self) -> Option<TimeStamp> {
+        self.start
     }
 }
 
@@ -217,9 +239,9 @@ mod tests {
         Month::new(
             input.general().month(),
             input.general().year(),
-            input.transfer().cloned().unwrap_or_default(),
+            input.transfer().unwrap_or_default(),
             input
-                .entries(working_duration)
+                .entries()
                 .map(|(key, entry)| json_input::Entry::from((key.clone(), entry.clone())))
                 .collect(),
             input
@@ -227,6 +249,7 @@ mod tests {
                 .map(|(key, value)| (key.clone(), value.clone()))
                 .collect(),
             Some(working_duration),
+            input.absences().map(|(k, v)| (k, v.clone())).collect(),
         )
     }
 

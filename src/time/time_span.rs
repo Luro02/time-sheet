@@ -21,6 +21,11 @@ impl TimeSpan {
         WorkingDuration::from_mins(self.end().as_mins() - self.start().as_mins())
     }
 
+    #[must_use]
+    pub fn overlaps_with(&self, other: TimeSpan) -> bool {
+        self.overlapping_duration(&other).is_some()
+    }
+
     pub fn overlapping_duration(&self, other: &TimeSpan) -> Option<Duration> {
         // 06:00 to 23:00
         // 03:00 to 07:00

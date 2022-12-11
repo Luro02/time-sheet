@@ -1,4 +1,5 @@
 mod about;
+mod absence;
 mod contract;
 mod dynamic;
 mod entry;
@@ -12,6 +13,7 @@ mod signature;
 mod transfer;
 
 pub use about::*;
+pub use absence::*;
 pub use contract::*;
 pub use dynamic::*;
 pub use entry::*;

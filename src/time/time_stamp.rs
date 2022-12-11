@@ -45,7 +45,7 @@ impl TimeStamp {
 
     #[doc(hidden)]
     #[must_use]
-    pub unsafe fn new_unchecked(hour: u8, minute: u8) -> Self {
+    pub const unsafe fn new_unchecked(hour: u8, minute: u8) -> Self {
         if hour > 23 || minute > 59 {
             unreachable_unchecked!("hour and minute must be in range but are not");
         }

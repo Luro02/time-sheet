@@ -176,13 +176,7 @@ impl Entry {
             return working_duration!(00:00);
         }
 
-        let mut result = self.time_span().duration();
-
-        if let Some(pause) = self.pause {
-            result -= pause;
-        }
-
-        result
+        self.time_span().duration() - self.break_duration()
     }
 
     pub fn break_duration(&self) -> WorkingDuration {

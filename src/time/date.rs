@@ -115,52 +115,6 @@ impl Date {
         }
     }
 
-    /// Returns the first date of the month with the given week day.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// # use time_sheet::time::{Year, Month, Date};
-    /// # use time_sheet::date;
-    /// #
-    /// assert_eq!(
-    ///     Date::first_day_with_week_day(
-    ///         Year::new(2022),
-    ///         Month::January,
-    ///         WeekDay::Monday,
-    ///     ),
-    ///     date!(2022:01:03)
-    /// );
-    ///
-    /// assert_eq!(
-    ///     Date::first_day_with_week_day(
-    ///         Year::new(2022),
-    ///         Month::January,
-    ///         WeekDay::Saturday,
-    ///     ),
-    ///     date!(2022:01:01)
-    /// );
-    ///
-    /// assert_eq!(
-    ///     Date::first_day_with_week_day(
-    ///         Year::new(2022),
-    ///         Month::January,
-    ///         WeekDay::Friday,
-    ///     ),
-    ///     date!(2022:01:07)
-    /// );
-    /// ```
-    pub const fn first_day_with_week_day(year: Year, month: Month, week_day: WeekDay) -> Self {
-        let mut start = Self::first_day(year, month);
-
-        // TODO: this could be calculated in O(1)
-        while !start.week_day().is_eq(&week_day) {
-            start = start.add_days(1);
-        }
-
-        start
-    }
-
     #[must_use]
     const fn apply_offset(week_day: WeekDay, day: usize) -> usize {
         // TODO: could be replaced with week_day.as_usize() - 1

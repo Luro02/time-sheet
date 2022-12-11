@@ -1,8 +1,9 @@
 use serde::Deserialize;
 
-use crate::input::toml_input::{Entry, Key};
-use crate::time::{Date, Month, WorkingDuration, Year};
-use crate::{time_stamp, working_duration};
+use crate::input::json_input::Entry;
+use crate::input::toml_input::Task;
+use crate::time::{Date, Month, TimeSpan, TimeStamp, WorkingDuration, Year};
+use crate::working_duration;
 
 const fn default_months() -> usize {
     1
@@ -11,6 +12,8 @@ const fn default_months() -> usize {
 #[derive(Debug, Clone, Deserialize)]
 pub struct Holiday {
     implicit: bool,
+    #[serde(default)]
+    start: Option<TimeStamp>,
     day: usize,
     #[serde(default = "default_months")]
     months: usize,
@@ -46,29 +49,25 @@ impl Holiday {
         year: Year,
         month: Month,
         monthly_time: WorkingDuration,
-    ) -> Option<(Key, Entry)> {
+        mut schedule: impl FnMut(Task) -> Vec<(Date, TimeSpan)>,
+    ) -> Vec<Entry> {
         if !self.implicit {
-            return None;
+            return vec![];
         }
 
         let duration = Self::duration(monthly_time, self.months);
 
-        let start = time_stamp!(11:00);
-        let end = start + duration;
-
-        let mut date = Date::new(year, month, self.day).unwrap();
-        while !date.is_workday() {
-            date += 1;
-
-            if date.month() != month {
-                panic!("Could not find a workday for the holiday")
+        let date = Date::new(year, month, self.day).expect("invalid day for month");
+        schedule({
+            if let Some(start) = self.start {
+                Task::new_with_start(duration, Some(date), true, start)
+            } else {
+                Task::new(duration, Some(date), true)
             }
-        }
-
-        Some((
-            Key::from_day(date.day()),
-            Entry::new("Urlaub".to_string(), start, end, None, Some(true)),
-        ))
+        })
+        .into_iter()
+        .map(|(date, span)| Entry::new_vacation("Urlaub", date.day(), span.start(), span.end()))
+        .collect()
     }
 }
 

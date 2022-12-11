@@ -4,7 +4,7 @@ use crate::input::scheduler::Scheduler;
 use crate::time::{Date, WorkingDuration};
 use crate::{min, working_duration};
 
-/// A scheduler that schedules work exclusively on workdays.
+/// A scheduler that limits the amount of work per day.
 #[derive(Debug, Clone, PartialEq)]
 pub struct DailyLimiter {
     scheduled: HashMap<Date, WorkingDuration>,
@@ -20,6 +20,11 @@ impl DailyLimiter {
             scheduled: HashMap::new(),
             limit,
         }
+    }
+
+    #[must_use]
+    pub const fn limit(&self) -> WorkingDuration {
+        self.limit
     }
 }
 

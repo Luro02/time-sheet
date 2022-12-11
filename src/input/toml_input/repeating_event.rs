@@ -2,7 +2,6 @@ use std::str::FromStr;
 
 use serde::Deserialize;
 
-use crate::date;
 use crate::time::{Date, TimeSpan, TimeStamp, WeekDay};
 use crate::utils::StrExt;
 
@@ -61,11 +60,6 @@ impl RepeatsEvery {
             RepeatSpan::Year => start.years_until(date) / self.n,
         }
     }
-
-    #[must_use]
-    pub fn applies_on(&self, start: Date, date: Date) -> bool {
-        start == date || self.repetitions(start, date - 1) < self.repetitions(start, date)
-    }
 }
 
 impl FromStr for RepeatsEvery {
@@ -93,63 +87,38 @@ impl TryFrom<String> for RepeatsEvery {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Deserialize, Default)]
-#[serde(try_from = "String")]
+#[derive(Debug, Clone, PartialEq)]
 pub enum CustomEnd {
     /// The event will never stop repeating.
-    #[default]
-    Never,
+    Never { start: Option<Date> },
     /// The date on which the event ends (inclusive).
-    On(Date),
+    On { start: Option<Date>, end: Date },
     /// The event will stop repeating after `n` repetitions.
-    AfterOccurrences { count: usize },
+    AfterOccurrences { start: Date, count: usize },
 }
 
 impl CustomEnd {
-    pub fn applies_on(&self, previous_repetitions: usize, date: Date) -> bool {
+    #[must_use]
+    pub fn applies_on(&self, date: Date, previous_repetitions: impl FnOnce(Date) -> usize) -> bool {
         match self {
-            Self::Never => true,
-            Self::On(end) => date <= *end,
-            Self::AfterOccurrences { count } => previous_repetitions < *count,
+            Self::Never { start } => start.map_or(true, |start| start <= date),
+            Self::On { start, end } => {
+                if let Some(start) = start {
+                    *start <= date && date <= *end
+                } else {
+                    date <= *end
+                }
+            }
+            Self::AfterOccurrences { start, count } => {
+                *start <= date && previous_repetitions(*start) < *count
+            }
         }
     }
 }
 
-impl From<Option<Date>> for CustomEnd {
-    fn from(date: Option<Date>) -> Self {
-        match date {
-            Some(date) => Self::On(date),
-            None => Self::Never,
-        }
-    }
-}
-
-impl FromStr for CustomEnd {
-    type Err = anyhow::Error;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        if s == "never" {
-            return Ok(Self::Never);
-        }
-
-        if let [Some(count), Some("times")] = s.split_exact::<2>(" ") {
-            let count = count
-                .parse::<usize>()
-                .map_err(|_| anyhow::anyhow!("Invalid number: {}", s))?;
-
-            return Ok(Self::AfterOccurrences { count });
-        }
-
-        let date = s.parse::<Date>()?;
-        Ok(Self::On(date))
-    }
-}
-
-impl TryFrom<String> for CustomEnd {
-    type Error = <Self as FromStr>::Err;
-
-    fn try_from(s: String) -> Result<Self, Self::Error> {
-        Self::from_str(&s)
+impl Default for CustomEnd {
+    fn default() -> Self {
+        Self::Never { start: None }
     }
 }
 
@@ -158,38 +127,28 @@ pub struct CustomRepeatInterval {
     repeats_every: RepeatsEvery,
     repeats_on: [bool; 7],
     end: CustomEnd,
-    start: Date,
 }
 
+// when can the start date be omitted?
+// - repeats_on weekdays
+// - repeats every week or every day (but not monthly or yearly)
+
 impl CustomRepeatInterval {
-    pub fn new(start: Date, repeats_every: RepeatsEvery, end: CustomEnd) -> Self {
-        let mut result = Self {
+    pub fn new(repeats_every: RepeatsEvery, end: CustomEnd, repeats_on: Vec<WeekDay>) -> Self {
+        // TODO: check if start date is required and correctly set repeats_on?
+
+        Self {
             repeats_every,
-            repeats_on: [false; 7],
+            repeats_on: WeekDay::week_days().map(|day| repeats_on.contains(&day)),
             end,
-            start,
-        };
-
-        result.set_repeats_on(start.week_day(), true);
-        result
+        }
     }
 
-    pub const fn repeats_on(&self, week_day: WeekDay) -> bool {
-        self.repeats_on[week_day.as_usize() - 1]
-    }
-
-    pub fn set_repeats_on(&mut self, week_day: WeekDay, value: bool) -> &mut Self {
-        self.repeats_on[week_day.as_usize() - 1] = value;
-        self
-    }
-
-    pub fn applies_on(&self, date: Date) -> bool {
-        let previous_repetitions = self.repeats_every.repetitions(self.start, date);
-
-        self.repeats_on(date.week_day())
-            && self.end.applies_on(previous_repetitions, date)
-            && self.start <= date
-            && self.repeats_every.applies_on(self.start, date)
+    pub fn repeats_on(&self, date: Date) -> bool {
+        self.repeats_on[date.week_day().as_usize() - 1]
+            && self
+                .end
+                .applies_on(date, |start| self.repeats_every.repetitions(start, date))
     }
 }
 
@@ -213,11 +172,12 @@ enum InternalRepeatingEvent {
     FixedDates { dates: Vec<Date> },
 }
 
+// TODO: test that this works correctly, like one would expect
 impl InternalRepeatingEvent {
     pub fn iter_week_days(&self) -> impl Iterator<Item = WeekDay> {
         match self {
             Self::WeekDays { repeats_on } => repeats_on.clone().into_iter(),
-            Self::FixedStart { .. } => vec![].into_iter(),
+            Self::FixedStart { start_date } => vec![start_date.week_day()].into_iter(),
             Self::FixedDates { .. } => vec![].into_iter(),
         }
     }
@@ -277,35 +237,30 @@ impl RepeatingEvent {
             return dates.contains(&date);
         }
 
-        self.to_custom().applies_on(date)
+        self.to_custom().repeats_on(date)
     }
 
     #[must_use]
     fn to_custom(&self) -> CustomRepeatInterval {
         let start_date = {
             match &self.internal {
-                InternalRepeatingEvent::WeekDays { repeats_on } => {
-                    let first_week_day = *repeats_on.iter().min().unwrap();
-                    let start_date = date!(1800:01:01).week_start();
-
-                    start_date + (first_week_day.as_usize() - 1)
-                }
-                InternalRepeatingEvent::FixedStart { start_date } => *start_date,
+                InternalRepeatingEvent::WeekDays { .. } => None,
+                InternalRepeatingEvent::FixedStart { start_date } => Some(*start_date),
                 InternalRepeatingEvent::FixedDates { .. } => unimplemented!("not supported"),
             }
         };
 
-        let mut interval = CustomRepeatInterval::new(
-            start_date,
+        CustomRepeatInterval::new(
             RepeatsEvery::new(1, self.repeats),
-            self.end_date.into(),
-        );
-
-        for week_day in self.internal.iter_week_days() {
-            interval.set_repeats_on(week_day, true);
-        }
-
-        interval
+            self.end_date.map_or_else(
+                || CustomEnd::default(),
+                |end| CustomEnd::On {
+                    start: start_date,
+                    end,
+                },
+            ),
+            self.internal.iter_week_days().collect(),
+        )
     }
 }
 
@@ -411,15 +366,54 @@ mod tests {
     }
 
     #[test]
-    fn test_applies_on() {
+    fn test_repeats_every_week() {
         let repetition = RepeatsEvery::new(7, RepeatSpan::Day);
 
         for (passed_days, date) in (date!(2022:01:01)..=date!(2023:12:31)).enumerate() {
             assert_eq!(
-                repetition.applies_on(date!(2022:01:01), date),
-                passed_days % 7 == 0,
-                "repetition on day {} is not correct",
+                repetition.repetitions(date!(2022:01:01), date),
+                passed_days / 7,
+                "number of repetitions on day {} is not correct",
                 date
+            );
+        }
+    }
+
+    #[track_caller]
+    fn assert_repeats_on(event: &RepeatingEvent, date: Date, expected: bool) {
+        assert_eq!(
+            event.repeats_on(date),
+            expected,
+            "event.repeats_on({}) should return \"{}\"",
+            date,
+            expected,
+        );
+    }
+
+    #[test]
+    fn test_repeats_on_weekdays() {
+        let event = RepeatingEvent::new_on_week_days(
+            RepeatSpan::Week,
+            time_stamp!(08:00),
+            time_stamp!(12:00),
+            vec![WeekDay::Tuesday, WeekDay::Friday],
+            None,
+        );
+
+        assert_eq!(
+            event.to_custom(),
+            CustomRepeatInterval::new(
+                RepeatsEvery::new(1, RepeatSpan::Week),
+                CustomEnd::Never { start: None },
+                vec![WeekDay::Tuesday, WeekDay::Friday],
+            )
+        );
+
+        for date in date!(2022:11:01)..=date!(2022:12:31) {
+            assert_repeats_on(
+                &event,
+                date,
+                date.week_day() == WeekDay::Tuesday || date.week_day() == WeekDay::Friday,
             );
         }
     }
