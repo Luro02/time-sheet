@@ -3,8 +3,8 @@ use serde::ser;
 use serde::Serialize;
 
 use crate::input::json_input::{Entry, MonthFile};
-use crate::input::toml_input::{DynamicEntry, Task, Transfer};
-use crate::time::{self, Date, WeekDay, WorkingDuration, Year};
+use crate::input::toml_input::{Absence, DynamicEntry, Holiday, Task, Transfer};
+use crate::time::{self, Date, TimeSpan, TimeStamp, WeekDay, WorkingDuration, Year};
 use crate::{time_stamp, working_duration};
 
 #[derive(Debug, Clone)]
@@ -15,6 +15,7 @@ pub struct Month {
     expected_working_duration: Option<WorkingDuration>,
     transfer: Transfer,
     entries: Vec<Entry>,
+    absence: Vec<(Date, Absence)>,
 }
 
 impl Month {
@@ -28,6 +29,7 @@ impl Month {
         entries: Vec<Entry>,
         dynamic_entries: IndexMap<String, DynamicEntry>,
         expected_working_duration: Option<WorkingDuration>,
+        absence: Vec<(Date, Absence)>,
     ) -> Self {
         Self {
             month,
@@ -36,7 +38,59 @@ impl Month {
             entries,
             dynamic_entries,
             expected_working_duration,
+            absence,
         }
+    }
+
+    pub fn add_entry_if_possible(&mut self, entry: Entry) {
+        let span = entry.time_span();
+        let entry_date = Date::new(self.year, self.month, entry.day()).unwrap();
+        let scheduled = self.schedule(Task::new_with_start(
+            span.duration(),
+            Some(entry_date),
+            false,
+            span.start(),
+        ));
+
+        if let Some((date, span)) = scheduled.get(0) {
+            if *date == entry_date && *span == entry.time_span() {
+                self.entries.push(entry);
+            }
+        }
+    }
+
+    /// Finds a free spot where the task can be placed.
+    /// In case the task must be split up, multiple spots will be returned.
+    fn schedule(&self, task: Task) -> Vec<(Date, TimeSpan)> {
+        let mut result = Vec::new();
+
+        let start = task.suggested_start().unwrap_or_else(|| time_stamp!(08:00));
+        let mut iter = self.days_with_time_for(task.duration(), Some(start));
+
+        let first = iter.next().expect("No free spot found for task!");
+
+        if let Some(date) = task.suggested_date() {
+            if date == first || iter.find(|d| *d == date).is_some() {
+                result.push((date, TimeSpan::new(start, start + task.duration())));
+                return result;
+            }
+        } else {
+            result.push((first, TimeSpan::new(start, start + task.duration())));
+        }
+
+        // TODO: should one implement splitting up the task?
+
+        result
+    }
+
+    // TODO: call this
+    pub fn schedule_holiday(&mut self, holiday: Holiday) {
+        self.entries.extend(holiday.to_entry(
+            self.year,
+            self.month,
+            self.expected_working_duration(),
+            |task| self.schedule(task),
+        ));
     }
 
     /// Returns the amount of time that the user should have worked in this month.
@@ -94,10 +148,39 @@ impl Month {
         Self::MAXIMUM_WORK_DURATION
     }
 
-    pub fn days_with_time_for(&self, duration: WorkingDuration) -> impl Iterator<Item = Date> + '_ {
+    // TODO: make use of this more?
+    #[must_use]
+    pub fn conflicts_with_existing_entry(&self, date: Date, time_span: TimeSpan) -> bool {
+        // check if the time span would exceed the maximum allowed working time
+        self.exceeds_working_duration_on_with(date, time_span.duration())
+            // check if there is a fixed entry that would overlap with the date/time span
+            || self
+                .entries_on_day(date)
+                .any(|entry| entry.time_span().overlaps_with(time_span))
+            // check if there is an absence in that time span
+            || self
+                .absences_on_day(date)
+                .any(|absence| absence.time_span().overlaps_with(time_span))
+    }
+
+    pub fn days_with_time_for(
+        &self,
+        duration: WorkingDuration,
+        start: Option<TimeStamp>,
+    ) -> impl Iterator<Item = Date> + '_ {
         self.year()
             .iter_days_in(self.month())
             .filter(move |date| !self.exceeds_working_duration_on_with(*date, duration))
+            .filter(move |date| {
+                // remove all dates where the start + duration conflict with
+                // an existing entry
+                start.map_or(true, |start| {
+                    !self.conflicts_with_existing_entry(
+                        *date,
+                        TimeSpan::new(start, start + duration),
+                    )
+                })
+            })
     }
 
     /// Checks whether or not there is work scheduled on the provided date.
@@ -123,6 +206,12 @@ impl Month {
         self.entries
             .iter()
             .filter(move |entry| entry.day() == date.day())
+    }
+
+    pub fn absences_on_day(&self, date: Date) -> impl Iterator<Item = &Absence> + '_ {
+        self.absence
+            .iter()
+            .filter_map(move |(d, absence)| (*d == date).then_some(absence))
     }
 
     /// Returns the transfer time for the month.

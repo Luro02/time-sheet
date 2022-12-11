@@ -27,6 +27,7 @@ where
 
         if !self.should_mix && fixed_work > working_duration!(00:00) {
             working_duration!(00:00)
+        // TODO: this if condition seems wrong, test it
         } else if wanted_duration < fixed_work {
             working_duration!(00:00)
         } else {

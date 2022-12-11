@@ -1,3 +1,4 @@
+mod absence_scheduler;
 mod daily_limiter;
 mod default_scheduler;
 mod fixed_scheduler;
@@ -6,6 +7,7 @@ mod time_span;
 mod work_schedule;
 mod workday_scheduler;
 
+pub use absence_scheduler::*;
 pub use daily_limiter::*;
 pub use default_scheduler::*;
 pub use fixed_scheduler::*;

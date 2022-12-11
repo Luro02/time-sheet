@@ -6,10 +6,11 @@ use anyhow::Context;
 use indexmap::IndexMap;
 use serde::de::DeserializeOwned;
 
-use crate::input::json_input::{GlobalFile, MonthFile};
-use crate::input::toml_input::{self, DynamicEntry};
+use crate::input::json_input::{self, Entry, GlobalFile, MonthFile};
+use crate::input::toml_input::{self, Absence, DynamicEntry, Holiday};
 use crate::input::{Month, Signature};
 use crate::latex_string::LatexString;
+use crate::time::Date;
 use crate::utils;
 use crate::utils::PathExt;
 
@@ -29,6 +30,9 @@ pub struct ConfigBuilder {
     output: Option<PathBuf>,
     preserve_dir: Option<PathBuf>,
     dynamic_entries: IndexMap<String, DynamicEntry>,
+    absences: Vec<(Date, Absence)>,
+    holiday: Option<Holiday>,
+    repeating: Vec<Entry>,
 }
 
 fn toml_from_reader<R, T>(reader: R) -> anyhow::Result<T>
@@ -52,7 +56,20 @@ impl ConfigBuilder {
             output: None,
             preserve_dir: None,
             dynamic_entries: IndexMap::new(),
+            absences: Vec::new(),
+            holiday: None,
+            repeating: Vec::new(),
         }
+    }
+
+    pub fn holiday(&mut self, holiday: Option<Holiday>) -> &mut Self {
+        self.holiday = holiday;
+        self
+    }
+
+    pub fn absences(&mut self, absences: Vec<(Date, Absence)>) -> &mut Self {
+        self.absences = absences;
+        self
     }
 
     pub fn signature(&mut self, signature: Signature) -> &mut Self {
@@ -83,6 +100,11 @@ impl ConfigBuilder {
         self
     }
 
+    pub fn repeating(&mut self, repeating: Vec<Entry>) -> &mut Self {
+        self.repeating = repeating;
+        self
+    }
+
     #[must_use]
     pub fn build(self) -> Config {
         let default_file_name = PathBuf::from(format!(
@@ -101,14 +123,23 @@ impl ConfigBuilder {
 
         let expected_working_duration = self.global_file.expected_working_duration();
 
-        let month = Month::new(
+        let mut month = Month::new(
             self.month_file.month(),
             self.month_file.year(),
             self.month_file.transfer(),
             self.month_file.into_entries(),
             self.dynamic_entries,
             Some(expected_working_duration),
+            self.absences,
         );
+
+        for entry in self.repeating {
+            month.add_entry_if_possible(entry);
+        }
+
+        if let Some(holiday) = self.holiday {
+            month.schedule_holiday(holiday);
+        }
 
         Config {
             month,
@@ -157,21 +188,11 @@ impl Config {
         Ok(ConfigBuilder::new(month_file, global_file))
     }
 
-    pub fn try_from_toml_files(
-        month: impl AsRef<Path>,
-        global: impl AsRef<Path>,
+    pub fn try_from_toml(
+        month: toml_input::Month,
+        global: toml_input::Global,
         department: impl Into<String>,
     ) -> anyhow::Result<ConfigBuilder> {
-        let mut month: toml_input::Month = toml_from_reader(File::open(month.as_ref())?)
-            .with_context(|| format!("failed to parse `{}`", month.as_ref().display()))?;
-        let global: toml_input::Global = toml_from_reader(File::open(global.as_ref())?)
-            .with_context(|| format!("failed to parse `{}`", global.as_ref().display()))?;
-
-        // add the repeating entries that apply from the global file to the month
-        month.add_entries(
-            global.repeating_in_month(month.general().year(), month.general().month()),
-        );
-
         let department = department.into();
         let about = global.about();
         let contract = global
@@ -181,6 +202,10 @@ impl Config {
             .dynamic_entries()
             .map(|(k, v)| (k.clone(), v.clone()))
             .collect::<IndexMap<_, _>>();
+        let absences = month
+            .absences()
+            .map(|(k, v)| (k, v.clone()))
+            .collect::<Vec<_>>();
 
         let signature = {
             if let (Some(month_signature), Some(global_signature)) =
@@ -195,17 +220,44 @@ impl Config {
             }
         };
 
-        let month_file = MonthFile::from((*contract.working_time(), month));
+        let holiday = month.holiday().cloned();
+        let repeating = global
+            .repeating_in_month(month.general().year(), month.general().month())
+            .flat_map(|(key, entry)| {
+                entry
+                    .into_iter()
+                    .map(move |e| json_input::Entry::from((key.clone(), e)))
+            })
+            .collect::<Vec<_>>();
+
+        let month_file = MonthFile::from(month);
         let global_file = GlobalFile::from((about.clone(), department, contract.clone()));
 
         let mut builder = ConfigBuilder::new(month_file, global_file);
 
-        builder.dynamic_entries(dynamic_entries);
+        builder
+            .dynamic_entries(dynamic_entries)
+            .absences(absences)
+            .holiday(holiday)
+            .repeating(repeating);
         if let Some(signature) = signature {
             builder.signature(signature);
         }
 
         Ok(builder)
+    }
+
+    pub fn try_from_toml_files(
+        month: impl AsRef<Path>,
+        global: impl AsRef<Path>,
+        department: impl Into<String>,
+    ) -> anyhow::Result<ConfigBuilder> {
+        let month: toml_input::Month = toml_from_reader(File::open(month.as_ref())?)
+            .with_context(|| format!("failed to parse `{}`", month.as_ref().display()))?;
+        let global: toml_input::Global = toml_from_reader(File::open(global.as_ref())?)
+            .with_context(|| format!("failed to parse `{}`", global.as_ref().display()))?;
+
+        Self::try_from_toml(month, global, department)
     }
 
     pub fn output(&self) -> &Path {
@@ -238,7 +290,11 @@ impl Config {
     }
 
     pub fn write_month_json(&self, path: impl AsRef<Path>) -> anyhow::Result<()> {
-        utils::write(path, serde_json::to_string_pretty(self.month())?)?;
+        utils::write(path, self.to_month_json()?)?;
         Ok(())
+    }
+
+    pub fn to_month_json(&self) -> serde_json::Result<String> {
+        serde_json::to_string_pretty(self.month())
     }
 }
