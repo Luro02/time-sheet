@@ -20,7 +20,7 @@ pub struct Entry {
     end: TimeStamp,
     #[serde(skip_serializing_if = "Option::is_none")]
     pause: Option<WorkingDuration>,
-    #[serde(skip_serializing_if = "is_false")]
+    #[serde(skip_serializing_if = "is_false", default)]
     vacation: bool,
 }
 
