@@ -136,6 +136,14 @@ impl AddAssign<Transfer> for Duration {
     }
 }
 
+impl Add<Transfer> for WorkingDuration {
+    type Output = Self;
+
+    fn add(self, transfer: Transfer) -> Self::Output {
+        WorkingDuration::from(self.to_duration() + transfer)
+    }
+}
+
 impl fmt::Debug for Transfer {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let (sign, net_transfer) = self.net_transfer();

@@ -15,21 +15,21 @@ pub struct GeneralSignature {
 }
 
 impl GeneralSignature {
-    pub fn date(&self) -> Date {
+    pub const fn date(&self) -> Date {
         self.date
     }
 }
 
 impl General {
-    pub fn month(&self) -> Month {
+    pub const fn month(&self) -> Month {
         self.month
     }
 
-    pub fn year(&self) -> Year {
+    pub const fn year(&self) -> Year {
         self.year
     }
 
-    pub fn signature(&self) -> Option<&GeneralSignature> {
+    pub const fn signature(&self) -> Option<&GeneralSignature> {
         self.signature.as_ref()
     }
 }

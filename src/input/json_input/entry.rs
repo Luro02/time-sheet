@@ -1,11 +1,16 @@
 use std::cmp::{Ord, Ordering, PartialOrd};
-use std::time::Duration;
 
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 use crate::input::toml_input::{self, Key};
-use crate::time::{self, TimeSpan, TimeStamp};
+use crate::time::{TimeSpan, TimeStamp, WorkingDuration};
+use crate::working_duration;
+
+#[must_use]
+const fn is_false(value: &bool) -> bool {
+    !*value
+}
 
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq)]
 pub struct Entry {
@@ -14,27 +19,42 @@ pub struct Entry {
     start: TimeStamp,
     end: TimeStamp,
     #[serde(skip_serializing_if = "Option::is_none")]
-    pause: Option<TimeStamp>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    vacation: Option<bool>,
+    pause: Option<WorkingDuration>,
+    #[serde(skip_serializing_if = "is_false")]
+    vacation: bool,
 }
 
 impl Entry {
     pub fn new(
-        action: String,
+        action: impl ToString,
         day: usize,
         start: TimeStamp,
         end: TimeStamp,
-        pause: Option<TimeStamp>,
-        vacation: Option<bool>,
+        pause: Option<WorkingDuration>,
     ) -> Self {
         Self {
-            action,
+            action: action.to_string(),
             day,
             start,
             end,
             pause,
-            vacation,
+            vacation: false,
+        }
+    }
+
+    pub fn new_vacation(
+        action: impl ToString,
+        day: usize,
+        start: TimeStamp,
+        end: TimeStamp,
+    ) -> Self {
+        Self {
+            action: action.to_string(),
+            day,
+            start,
+            end,
+            pause: None,
+            vacation: true,
         }
     }
 }
@@ -44,10 +64,10 @@ impl From<(Key, toml_input::Entry)> for Entry {
         Self {
             action: entry.action().to_string(),
             day: key.day(),
-            start: *entry.start(),
-            end: *entry.end(),
-            pause: entry.pause().copied(),
-            vacation: Some(entry.is_vacation()),
+            start: entry.start(),
+            end: entry.end(),
+            pause: entry.pause(),
+            vacation: entry.is_vacation(),
         }
     }
 }
@@ -90,70 +110,114 @@ impl Ord for Entry {
 }
 
 #[derive(Debug, Clone, Error)]
-#[error(
-    "Exceeded maximum allowed work time by {} on day {}",
-    time::format_duration(duration),
-    day
-)]
+#[error("Exceeded maximum allowed work time by {} on day {}", duration, day)]
 pub struct ExceededWorkTime {
-    duration: Duration,
+    duration: WorkingDuration,
     day: usize,
 }
 
 impl ExceededWorkTime {
-    pub fn new(duration: Duration, day: usize) -> Self {
+    pub fn new(duration: WorkingDuration, day: usize) -> Self {
         Self { duration, day }
     }
 }
 
 impl Entry {
-    const MAX_WORK_TIME_DAY: Duration = time::duration_from_hours(10);
-
-    /// This returns the duration the person has worked, pauses are subtracted from the duration.
-    pub fn work_duration(&self) -> Duration {
-        let mut duration = self.end.elapsed(&self.start);
-
-        if let Some(pause) = &self.pause {
-            duration = duration.saturating_sub((*pause).into());
-            // TODO: vacation
+    /// This returns the duration that has been worked,
+    /// pauses are subtracted from the duration.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # use time_sheet::input::json_input::Entry;
+    /// # use time_sheet::{time_stamp, working_duration};
+    /// #
+    /// assert_eq!(
+    ///     Entry::new(
+    ///         "made breakfast",
+    ///         1,
+    ///         time_stamp!(08:00),
+    ///         time_stamp!(08:45),
+    ///         None,
+    ///     ).work_duration(),
+    ///     working_duration!(00:45),
+    /// );
+    ///
+    /// assert_eq!(
+    ///     Entry::new(
+    ///         "made breakfast",
+    ///         2,
+    ///         time_stamp!(08:00),
+    ///         time_stamp!(08:45),
+    ///         Some(working_duration!(00:15)),
+    ///     ).work_duration(),
+    ///     working_duration!(00:30),
+    /// );
+    /// ```
+    ///
+    /// If the entry is a vacation, the duration will always be zero:
+    ///
+    /// ```
+    /// # use time_sheet::input::json_input::Entry;
+    /// # use time_sheet::{time_stamp, working_duration};
+    /// #
+    /// assert_eq!(
+    ///     Entry::new_vacation(
+    ///         "christmas vacation",
+    ///         24,
+    ///         time_stamp!(00:00),
+    ///         time_stamp!(23:59),
+    ///     ).work_duration(),
+    ///     working_duration!(00:00),
+    /// );
+    /// ```
+    pub fn work_duration(&self) -> WorkingDuration {
+        if self.is_vacation() {
+            return working_duration!(00:00);
         }
 
-        duration
+        let mut result = self.time_span().duration();
+
+        if let Some(pause) = self.pause {
+            result -= pause;
+        }
+
+        result
     }
 
-    pub fn break_duration(&self) -> Duration {
-        self.pause.map(Into::into).unwrap_or_default()
+    pub fn break_duration(&self) -> WorkingDuration {
+        self.pause.unwrap_or_default()
     }
 
-    pub fn remaining_work_time(&self) -> Result<Duration, ExceededWorkTime> {
+    // TODO: might be better to return Transfer with a method that makes the error?
+    pub fn remaining_work_time(
+        &self,
+        maximum: WorkingDuration,
+    ) -> Result<WorkingDuration, ExceededWorkTime> {
         let work_duration = self.work_duration();
-        if work_duration > Self::MAX_WORK_TIME_DAY {
+        if work_duration > maximum {
             return Err(ExceededWorkTime::new(work_duration, self.day));
         }
 
-        Ok(Self::MAX_WORK_TIME_DAY - self.work_duration())
+        Ok(maximum - self.work_duration())
     }
 
     pub fn day(&self) -> usize {
         self.day
     }
 
-    pub fn start(&self) -> TimeStamp {
-        self.start
-    }
-
-    pub fn end(&self) -> TimeStamp {
-        self.end
-    }
-
     pub fn time_span(&self) -> TimeSpan {
         TimeSpan::new(self.start, self.end)
+    }
+
+    pub const fn is_vacation(&self) -> bool {
+        self.vacation
     }
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::time::DurationExt;
+    use crate::time_stamp;
 
     use super::*;
 
@@ -161,18 +225,28 @@ mod tests {
 
     #[test]
     fn test_working_duration() {
-        let entry = Entry {
-            action: "test".to_string(),
-            day: 1,
-            start: TimeStamp::new(08, 00).unwrap(),
-            end: TimeStamp::new(12, 23).unwrap(),
-            pause: None,    // Option<TimeStamp>
-            vacation: None, // Option<bool>
-        };
+        assert_eq!(
+            Entry::new(
+                "did something",
+                1,
+                time_stamp!(08:00),
+                time_stamp!(12:23),
+                None
+            )
+            .work_duration(),
+            working_duration!(04:23),
+        );
 
         assert_eq!(
-            entry.work_duration(),
-            Duration::from_hours(4) + Duration::from_mins(23)
+            Entry::new(
+                "did something",
+                1,
+                time_stamp!(08:00),
+                time_stamp!(14:45),
+                Some(working_duration!(01:15))
+            )
+            .work_duration(),
+            working_duration!(05:30),
         );
     }
 }

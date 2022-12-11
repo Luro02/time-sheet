@@ -28,7 +28,7 @@ pub struct Entry {
     action: String,
     start: TimeStamp,
     end: TimeStamp,
-    pause: Option<TimeStamp>,
+    pause: Option<WorkingDuration>,
     is_vacation: Option<bool>,
     /// Can be used to introduce randomness around the specified date.
     ///
@@ -43,7 +43,7 @@ impl Entry {
         action: String,
         start: TimeStamp,
         end: TimeStamp,
-        pause: Option<TimeStamp>,
+        pause: Option<WorkingDuration>,
         is_vacation: Option<bool>,
     ) -> Self {
         Self {
@@ -60,23 +60,24 @@ impl Entry {
         &self.action
     }
 
-    pub fn start(&self) -> &TimeStamp {
-        &self.start
+    pub fn start(&self) -> TimeStamp {
+        self.start
     }
 
-    pub fn end(&self) -> &TimeStamp {
-        &self.end
+    pub fn end(&self) -> TimeStamp {
+        self.end
     }
 
-    pub fn pause(&self) -> Option<&TimeStamp> {
-        self.pause.as_ref()
+    pub fn pause(&self) -> Option<WorkingDuration> {
+        self.pause
     }
 
     pub fn is_vacation(&self) -> bool {
         self.is_vacation.unwrap_or(false)
     }
 
-    pub fn flex(&self) -> &WorkingDuration {
-        &self.flex
+    // TODO: make use of the flex
+    pub fn flex(&self) -> WorkingDuration {
+        self.flex
     }
 }

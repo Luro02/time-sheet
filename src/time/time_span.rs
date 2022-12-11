@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use derive_more::Display;
 
-use crate::time::TimeStamp;
+use crate::time::{TimeStamp, WorkingDuration};
 use crate::{max, min};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Display)]
@@ -13,8 +13,12 @@ pub struct TimeSpan {
 }
 
 impl TimeSpan {
-    pub fn new(start: TimeStamp, end: TimeStamp) -> Self {
+    pub const fn new(start: TimeStamp, end: TimeStamp) -> Self {
         Self { start, end }
+    }
+
+    pub const fn duration(&self) -> WorkingDuration {
+        WorkingDuration::from_mins(self.end().as_mins() - self.start().as_mins())
     }
 
     pub fn overlapping_duration(&self, other: &TimeSpan) -> Option<Duration> {

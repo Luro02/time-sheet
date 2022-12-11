@@ -1,4 +1,4 @@
-use std::ops::Add;
+use std::ops::{Add, Sub};
 use std::str::FromStr;
 use std::time::Duration;
 
@@ -35,7 +35,7 @@ pub struct InvalidTime {
 }
 
 impl TimeStamp {
-    pub fn new(hour: u8, minute: u8) -> Result<Self, InvalidTime> {
+    pub const fn new(hour: u8, minute: u8) -> Result<Self, InvalidTime> {
         if hour > 23 || minute > 59 {
             return Err(InvalidTime { hour, minute });
         }
@@ -56,14 +56,13 @@ impl TimeStamp {
     // the maximum TimeStamp is 23:59, which would be 23 * 60 + 59 = 1439
     // u16::MAX is 2^16 - 1 = 65535
     #[must_use]
-    const fn as_minutes(&self) -> u16 {
+    pub const fn as_mins(&self) -> u16 {
         self.hour as u16 * 60 + self.minute as u16
     }
 
     // TODO: how about reverse?
     pub const fn elapsed(&self, other: &Self) -> Duration {
-        let minutes = max!(self.as_minutes(), other.as_minutes())
-            - min!(self.as_minutes(), other.as_minutes());
+        let minutes = max!(self.as_mins(), other.as_mins()) - min!(self.as_mins(), other.as_mins());
 
         Duration::from_secs(minutes as u64 * 60)
     }
@@ -71,7 +70,7 @@ impl TimeStamp {
 
 impl From<TimeStamp> for Duration {
     fn from(time: TimeStamp) -> Self {
-        Duration::from_secs(time.as_minutes() as u64 * 60)
+        Duration::from_secs(time.as_mins() as u64 * 60)
     }
 }
 
@@ -148,6 +147,14 @@ impl Add<WorkingDuration> for TimeStamp {
             minute: (minutes % 60) as u8,
             hour: hours,
         }
+    }
+}
+
+impl Sub for TimeStamp {
+    type Output = WorkingDuration;
+
+    fn sub(self, rhs: Self) -> Self::Output {
+        WorkingDuration::from_mins(self.as_mins() - rhs.as_mins())
     }
 }
 

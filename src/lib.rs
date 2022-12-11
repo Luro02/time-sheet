@@ -26,8 +26,8 @@ pub fn generate_time_sheet(config: &Config) -> anyhow::Result<()> {
         return Err(anyhow::anyhow!("verification failed"));
     }
 
-    let total_time = config.month().total_working_time().as_secs() / 60;
-    info!("worked: {:02}:{:02}", total_time / 60, total_time % 60);
+    let total_time = config.month().total_working_time();
+    info!("worked: {}", total_time);
 
     info!("generating time sheet from month and global files");
 

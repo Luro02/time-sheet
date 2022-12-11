@@ -1,9 +1,7 @@
-use std::time::Duration;
-
 use thiserror::Error;
 
 use crate::input::Config;
-use crate::time::{self, Date, DurationExt, PrettyDuration, TimeSpan, TimeStamp};
+use crate::time::{Date, PrettyDuration, TimeSpan, TimeStamp};
 use crate::verifier::Verifier;
 
 pub struct VerifyTime;
@@ -37,21 +35,6 @@ impl Verifier for VerifyTime {
             // TODO: one needs to sum up the times for all entries on a single day!
             for entry in config.month().entries_on_day(day) {
                 // https://www.gesetze-im-internet.de/arbzg/BJNR117100994.html
-
-                // one should not work more than 8 hours per day:
-                if entry.work_duration() > time::duration_from_hours(8) {
-                    unimplemented!("do error")
-                }
-
-                // if one has worked more than 6 hours one needs a 30min break
-                if entry.work_duration() > time::duration_from_hours(6)
-                    // this is implied by the previous condition
-                    && entry.work_duration() <= time::duration_from_hours(9)
-                    // one needs to take at least a 30min break!
-                    && entry.break_duration() < Duration::from_mins(30)
-                {
-                    unimplemented!("pause is not long enough")
-                }
 
                 // this is not a night work, so you are not allowed to work
                 // more than 2 hours into the night time

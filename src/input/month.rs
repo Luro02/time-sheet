@@ -1,5 +1,3 @@
-use std::time::Duration;
-
 use indexmap::IndexMap;
 use serde::ser;
 use serde::Serialize;
@@ -65,16 +63,17 @@ impl Month {
         self.month
     }
 
+    /// Returns the amount of time that has been worked in the month.
+    /// This includes the time from the previous/next month, which is
+    /// specified through the `Transfer`.
     #[must_use]
-    pub fn total_working_time(&self) -> Duration {
-        let mut result = Duration::from_secs(0);
-
-        for entry in self.entries.iter() {
-            result += entry.work_duration();
-        }
-
+    pub fn total_working_time(&self) -> WorkingDuration {
         // add the time from the previous/next month
-        result + self.transfer
+        self.entries
+            .iter()
+            .map(|e| e.work_duration())
+            .sum::<WorkingDuration>()
+            + self.transfer.previous()
     }
 
     /// Checks if one can work the provided `duration` on that `date`, without exceeding
@@ -129,8 +128,8 @@ impl Month {
     /// Returns the transfer time for the month.
     /// (how much time is transfered to the next month/from the previous month)
     #[must_use]
-    pub fn transfer(&self) -> &Transfer {
-        &self.transfer
+    pub const fn transfer(&self) -> Transfer {
+        self.transfer
     }
 
     fn to_month_file(&self) -> MonthFile {
@@ -170,22 +169,14 @@ impl Month {
                 date.day(),
                 start,
                 end,
-                pause.map(Into::into),
-                None, // TODO: add vacation?
+                pause,
             ))
         }
 
         // sort the entries in the json file, so that no problems occur with the java tool
         entries.sort();
 
-        MonthFile {
-            schema: MonthFile::default_schema().to_string(),
-            year: self.year,
-            month: self.month,
-            pred_transfer: self.transfer().previous(),
-            succ_transfer: self.transfer().next(),
-            entries,
-        }
+        MonthFile::new(self.year, self.month, self.transfer(), entries)
     }
 }
 

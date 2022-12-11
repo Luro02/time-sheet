@@ -17,7 +17,7 @@ pub enum WeekDay {
 
 impl WeekDay {
     #[must_use]
-    const fn week_days() -> [Self; 7] {
+    pub const fn week_days() -> [Self; 7] {
         [
             Self::Monday,
             Self::Tuesday,
