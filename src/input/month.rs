@@ -83,8 +83,7 @@ impl Month {
         result
     }
 
-    // TODO: call this
-    pub fn schedule_holiday(&mut self, holiday: Holiday) {
+    pub fn schedule_holiday(&mut self, holiday: &Holiday) {
         self.entries.extend(holiday.to_entry(
             self.year,
             self.month,

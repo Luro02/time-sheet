@@ -16,13 +16,13 @@ pub struct Contract {
 
 impl Contract {
     /// How long the employee has to work each month.
-    pub fn working_time(&self) -> &WorkingDuration {
-        &self.working_time
+    pub fn expected_working_duration(&self) -> WorkingDuration {
+        self.working_time
     }
 
     /// In which field the employee is working at the university.
-    pub fn area(&self) -> &WorkingArea {
-        &self.area
+    pub fn working_area(&self) -> WorkingArea {
+        self.area
     }
 
     /// How much the employee makes per hour (in euros).

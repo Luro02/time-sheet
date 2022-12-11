@@ -58,8 +58,4 @@ impl MonthFile {
     pub fn transfer(&self) -> Transfer {
         Transfer::new(self.pred_transfer, self.succ_transfer)
     }
-
-    pub(in crate::input) fn into_entries(self) -> Vec<Entry> {
-        self.entries
-    }
 }

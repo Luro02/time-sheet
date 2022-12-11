@@ -3,7 +3,7 @@ use std::str::FromStr;
 use derive_more::Display;
 use serde::{de, ser, Deserialize, Serialize};
 
-#[derive(Debug, Clone, Display)]
+#[derive(Debug, Copy, Clone, Display)]
 pub enum WorkingArea {
     #[display(fmt = "ub")]
     Universitary,

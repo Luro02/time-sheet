@@ -1,10 +1,12 @@
 use std::ffi::OsStr;
 use std::fs;
 use std::io;
+use std::io::{BufReader, Read};
 use std::path::Path;
 
 use log::trace;
 use rust_embed::RustEmbed;
+use serde::de::DeserializeOwned;
 use serde::ser;
 
 mod iterator;
@@ -20,6 +22,17 @@ where
     S: ser::Serializer,
 {
     s.serialize_f32(*x)
+}
+
+pub fn toml_from_reader<R, T>(reader: R) -> anyhow::Result<T>
+where
+    R: Read,
+    T: DeserializeOwned,
+{
+    let mut reader = BufReader::new(reader);
+    let mut date = String::with_capacity(1024 * 1024);
+    reader.read_to_string(&mut date)?;
+    Ok(toml::from_str(&date)?)
 }
 
 // TODO: what about multiple overflow? or when base + to_add overflows?

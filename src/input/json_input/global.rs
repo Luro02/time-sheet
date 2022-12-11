@@ -23,7 +23,6 @@ pub struct GlobalFile {
     department: String,
     #[serde(rename = "workingTime")]
     working_time: WorkingDuration,
-    // TODO: round to 2 decimal places
     #[serde(serialize_with = "utils::round_serialize")]
     wage: f32,
     #[serde(rename = "workingArea")]
@@ -41,9 +40,9 @@ impl From<(toml_input::About, String, toml_input::Contract)> for GlobalFile {
             name: about.name().to_string(),
             staff_id: about.staff_id(),
             department,
-            working_time: *contract.working_time(),
+            working_time: contract.expected_working_duration(),
             wage: contract.wage().unwrap_or(12.00),
-            working_area: contract.area().clone(),
+            working_area: contract.working_area(),
             bg_content: contract
                 .bg_content()
                 .map(|s| LatexString::from_str(s).unwrap()),
