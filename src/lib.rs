@@ -4,28 +4,18 @@ mod latex_generator;
 mod latex_string;
 mod tex_render;
 mod utils;
-mod verifier;
 
 pub mod input;
 pub mod time;
 
 use std::fs;
 
-use log::{error, info};
+use log::info;
 
 use crate::input::Config;
 use crate::latex_generator::LatexGenerator;
-use crate::verifier::{DefaultVerifier, Verifier};
 
 pub fn generate_time_sheet(config: &Config) -> anyhow::Result<()> {
-    if let Err(errors) = DefaultVerifier.verify(config) {
-        for error in errors {
-            error!("{}", error);
-        }
-
-        return Err(anyhow::anyhow!("verification failed"));
-    }
-
     let total_time = config.month().total_working_time();
     info!("worked: {}", total_time);
 

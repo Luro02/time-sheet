@@ -23,24 +23,8 @@ impl<'a> DefaultScheduler<Box<dyn Fn(Date) -> WorkingDuration + 'a>> {
         Self {
             scheduler: (
                 WorkdayScheduler::new(),
-                FixedScheduler::new(
-                    Box::new(|date| {
-                        month
-                            .entries_on_day(date)
-                            .map(|e| e.work_duration())
-                            .sum::<WorkingDuration>()
-                    }),
-                    options,
-                ),
-                AbsenceScheduler::new(
-                    Box::new(|date| {
-                        month
-                            .absences_on_day(date)
-                            .map(|absence| absence.duration())
-                            .sum::<WorkingDuration>()
-                    }),
-                    options,
-                ),
+                FixedScheduler::new(Box::new(|date| month.working_time_on_day(date)), options),
+                AbsenceScheduler::new(Box::new(|date| month.absence_time_on_day(date)), options),
                 DailyLimiter::new(options),
             ),
             month_scheduler: MonthScheduler::new(

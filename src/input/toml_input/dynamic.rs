@@ -175,10 +175,7 @@ impl DynamicEntry {
 
             let (scheduled_tasks, new_transfer_task) =
                 schedule.schedule(dynamic_tasks, &mut scheduler, |date| {
-                    month
-                        .entries_on_day(date)
-                        .map(|e| e.work_duration())
-                        .sum::<WorkingDuration>()
+                    month.working_time_on_day(date)
                 });
 
             assert!(transfer_task.is_none() || new_transfer_task.is_none());

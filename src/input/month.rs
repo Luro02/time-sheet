@@ -4,7 +4,7 @@ use serde::Serialize;
 use crate::input::json_input::{Entry, MonthFile};
 use crate::input::scheduler::SchedulerOptions;
 use crate::input::toml_input::{Absence, DynamicEntry, Holiday, Task, Transfer};
-use crate::time::{self, Date, TimeSpan, TimeStamp, WeekDay, WorkingDuration, Year};
+use crate::time::{self, Date, TimeSpan, TimeStamp, WorkingDuration, Year};
 use crate::{time_stamp, working_duration};
 
 #[derive(Debug, Clone)]
@@ -134,13 +134,16 @@ impl Month {
             + self.transfer.previous()
     }
 
-    /// Checks if one can work the provided `duration` on that `date`, without exceeding
-    /// the maximum working time on that week/day/month.
-    pub fn exceeds_working_duration_on_with(&self, date: Date, duration: WorkingDuration) -> bool {
-        let time_on_day: WorkingDuration = self
-            .entries_on_day(date)
+    pub fn working_time_on_day(&self, date: Date) -> WorkingDuration {
+        self.entries_on_day(date)
             .map(|e| e.work_duration())
             .sum::<WorkingDuration>()
+    }
+
+    /// Checks if one can work the provided `duration` on that `date`, without exceeding
+    /// the maximum working time on that week/day/month.
+    fn exceeds_working_duration_on_with(&self, date: Date, duration: WorkingDuration) -> bool {
+        let time_on_day: WorkingDuration = self.working_time_on_day(date)
             // add the provided duration to the total working duration
             + duration;
 
@@ -152,9 +155,8 @@ impl Month {
         Self::MAXIMUM_WORK_DURATION
     }
 
-    // TODO: make use of this more?
     #[must_use]
-    pub fn conflicts_with_existing_entry(&self, date: Date, time_span: TimeSpan) -> bool {
+    fn conflicts_with_existing_entry(&self, date: Date, time_span: TimeSpan) -> bool {
         // check if the time span would exceed the maximum allowed working time
         self.exceeds_working_duration_on_with(date, time_span.duration())
             // check if there is a fixed entry that would overlap with the date/time span
@@ -167,7 +169,7 @@ impl Month {
                 .any(|absence| absence.time_span().overlaps_with(time_span))
     }
 
-    pub fn days_with_time_for(
+    fn days_with_time_for(
         &self,
         duration: WorkingDuration,
         start: Option<TimeStamp>,
@@ -187,41 +189,29 @@ impl Month {
             })
     }
 
-    /// Checks whether or not there is work scheduled on the provided date.
-    #[must_use]
-    pub fn has_entries_on(&self, date: Date) -> bool {
-        self.entries_on_day(date).next().is_some()
-    }
-
-    /// Returns days in the `month` where no fixed work is planned or has been made.
-    pub fn free_days(&self) -> impl Iterator<Item = Date> + '_ {
-        self.year()
-            .iter_days_in(self.month())
-            // skip all sundays, where one is not allowed to work
-            .filter(|date| date.week_day() != WeekDay::Sunday)
-            // skip all holidays, where one is not allowed to work
-            .filter(|date| !date.is_holiday())
-            // skip all days where there is already an entry
-            .filter(|date| self.entries_on_day(*date).next().is_some())
-    }
-
     /// Returns an iterator over all entries that are on the given day.
-    pub fn entries_on_day(&self, date: Date) -> impl Iterator<Item = &Entry> + '_ {
+    fn entries_on_day(&self, date: Date) -> impl Iterator<Item = &Entry> + '_ {
         self.entries
             .iter()
             .filter(move |entry| entry.day() == date.day())
     }
 
-    pub fn absences_on_day(&self, date: Date) -> impl Iterator<Item = &Absence> + '_ {
+    fn absences_on_day(&self, date: Date) -> impl Iterator<Item = &Absence> + '_ {
         self.absence
             .iter()
             .filter_map(move |(d, absence)| (*d == date).then_some(absence))
     }
 
+    pub fn absence_time_on_day(&self, date: Date) -> WorkingDuration {
+        self.absences_on_day(date)
+            .map(|absence| absence.duration())
+            .sum::<WorkingDuration>()
+    }
+
     /// Returns the transfer time for the month.
     /// (how much time is transfered to the next month/from the previous month)
     #[must_use]
-    pub const fn transfer(&self) -> Transfer {
+    const fn transfer(&self) -> Transfer {
         self.transfer
     }
 
