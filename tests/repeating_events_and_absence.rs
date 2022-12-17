@@ -32,10 +32,6 @@ fn test_repeating_and_absence() {
     ))
     .expect("toml should be valid");
 
-    dbg!(&global
-        .repeating_in_month(Year::new(2022), Month::November)
-        .collect::<Vec<_>>());
-
     let month: toml_input::Month = toml::from_str(concat!(
         //
         "[general]\n",

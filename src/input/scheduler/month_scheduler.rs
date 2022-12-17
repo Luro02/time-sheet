@@ -114,6 +114,35 @@ impl MonthScheduler {
 
             next_week += 1;
         }
+
+        // if the last week has a positive transfer, then it will overflow
+        // into the next month
+        //
+        // this is not desired if there is still time left in the month,
+        // so the transfer time from the last week will be added to the remaining
+        // weeks with time
+        if self.weeks[self.weeks.len() - 1].transfer().is_positive() {
+            let mut transfer = Transfer::default();
+
+            for week in self.weeks.iter_mut().rev() {
+                week.add_transfer(transfer);
+                transfer = Transfer::default();
+
+                if week.transfer().is_positive() {
+                    transfer = week.take_transfer();
+                } else {
+                    break;
+                }
+            }
+
+            // if the transfer can not be distributed over the weeks,
+            // it will accumulate at the beginning of the month (will be stored in
+            // the transfer variable)
+            // This is not ideal, so transfer it all to the last week:
+            if transfer.is_positive() {
+                self.weeks[self.weeks.len() - 1].add_transfer(transfer);
+            }
+        }
     }
 }
 
@@ -379,5 +408,97 @@ mod tests {
             scheduler.transfer_time(),
             Transfer::new(working_duration!(41:00), working_duration!(00:00))
         );
+    }
+
+    #[test]
+    fn test_reverse_transfer() {
+        let mut scheduler =
+            MonthScheduler::new(Year::new(2022), Month::November, working_duration!(10:00));
+
+        // 25 workable days:
+        // - week 1: 4 days -> 4/25 * 10h =  96 mins
+        // - week 2: 6 days -> 6/25 * 10h = 144 mins
+        // - week 3: 6 days -> 6/25 * 10h = 144 mins
+        // - week 4: 6 days -> 6/25 * 10h = 144 mins
+        // - week 5: 3 days -> 3/25 * 10h =  72 mins
+
+        // worked way more in the last week
+        scheduler.schedule_in_advance(date!(2022:11:29), working_duration!(05:00));
+
+        // this influences the distribution
+        // (228 mins need to be distributed across the previous weeks):
+        // - week 1: 4 days -> 4/25 * 10h =  96 mins
+        // - week 2: 6 days -> 6/25 * 10h = 144 mins
+        // - week 3: 6 days -> 6/25 * 10h =  60 mins
+        // - week 4: 6 days -> 6/25 * 10h =   0 mins
+        // - week 5: 3 days -> 3/25 * 10h =   0 mins
+
+        assert_eq!(
+            scheduler.has_time_for(date!(2022:11:02), working_duration!(10:00)),
+            working_duration!(01:36)
+        );
+
+        assert_eq!(
+            scheduler.has_time_for(date!(2022:11:08), working_duration!(10:00)),
+            working_duration!(04:00)
+        );
+
+        assert_eq!(
+            scheduler.has_time_for(date!(2022:11:15), working_duration!(10:00)),
+            working_duration!(05:00)
+        );
+
+        assert_eq!(
+            scheduler.has_time_for(date!(2022:11:22), working_duration!(10:00)),
+            working_duration!(05:00)
+        );
+
+        assert_eq!(
+            scheduler.has_time_for(date!(2022:11:29), working_duration!(10:00)),
+            working_duration!(05:00)
+        );
+
+        assert_eq!(scheduler.transfer_time(), transfer!(-05:00));
+    }
+
+    #[test]
+    fn test_impossible_transfer() {
+        // this will happen when every week is full
+        let mut scheduler =
+            MonthScheduler::new(Year::new(2022), Month::November, working_duration!(10:00));
+
+        // 25 workable days:
+        // - week 1: 4 days -> 4/25 * 10h =  96 mins
+        // - week 2: 6 days -> 6/25 * 10h = 144 mins
+        // - week 3: 6 days -> 6/25 * 10h = 144 mins
+        // - week 4: 6 days -> 6/25 * 10h = 144 mins
+        // - week 5: 3 days -> 3/25 * 10h =  72 mins
+
+        // worked too much:
+        scheduler.schedule_in_advance(date!(2022:11:29), working_duration!(05:00));
+        scheduler.schedule_in_advance(date!(2022:11:02), working_duration!(07:00));
+
+        // this influences the distribution
+        // - week 1: 4 days -> 4/25 * 10h =   0 mins
+        // - week 2: 6 days -> 6/25 * 10h =   0 mins
+        // - week 3: 6 days -> 6/25 * 10h =   0 mins
+        // - week 4: 6 days -> 6/25 * 10h =   0 mins
+        // - week 5: 3 days -> 3/25 * 10h =   0 mins
+        // + transfer of 120 mins
+
+        for date in [
+            date!(2022:11:02),
+            date!(2022:11:08),
+            date!(2022:11:15),
+            date!(2022:11:22),
+            date!(2022:11:29),
+        ] {
+            assert_eq!(
+                scheduler.has_time_for(date, working_duration!(10:00)),
+                working_duration!(00:00)
+            );
+        }
+
+        assert_eq!(scheduler.transfer_time(), transfer!(+02:00));
     }
 }

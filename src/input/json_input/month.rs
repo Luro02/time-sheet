@@ -32,6 +32,7 @@ impl From<toml_input::Month> for MonthFile {
 
 impl MonthFile {
     pub fn new(year: Year, month: Month, transfer: Transfer, entries: Vec<Entry>) -> Self {
+        let transfer = transfer.normalized();
         Self {
             schema: default_schema().to_string(),
             year,

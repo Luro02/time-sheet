@@ -87,7 +87,7 @@ impl Month {
         self.entries.extend(holiday.to_entry(
             self.year,
             self.month,
-            self.expected_working_duration(),
+            self.real_expected_working_duration(),
             |task| self.schedule(task),
         ));
     }
@@ -98,6 +98,11 @@ impl Month {
     /// a working time of 40 hours returned.
     #[must_use]
     pub fn expected_working_duration(&self) -> WorkingDuration {
+        self.real_expected_working_duration() + self.transfer
+    }
+
+    #[must_use]
+    fn real_expected_working_duration(&self) -> WorkingDuration {
         self.expected_working_duration
             .unwrap_or(working_duration!(40:00))
     }

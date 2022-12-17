@@ -48,6 +48,10 @@ impl<Id> ScheduledDistribution<Id> {
     pub fn schedule(self) -> impl IntoIterator<Item = (Id, ScheduledTime)> {
         self.schedule
     }
+
+    pub fn transfer_time(&self) -> Transfer {
+        self.transfer_time
+    }
 }
 
 #[derive(Debug, Copy, Clone, PartialEq)]

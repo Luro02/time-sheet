@@ -20,7 +20,9 @@ macro_rules! transfer {
 
 #[derive(Copy, Clone, PartialEq, Eq, Deserialize, Default)]
 pub struct Transfer {
+    #[serde(alias = "prev")]
     previous_month: WorkingDuration,
+    #[serde(alias = "next")]
     next_month: WorkingDuration,
 }
 
@@ -30,6 +32,13 @@ impl Transfer {
             previous_month,
             next_month,
         }
+    }
+
+    /// Returns a normalized transfer, where either `previous` or `next` is
+    /// always zero.
+    pub fn normalized(self) -> Self {
+        let (sign, duration) = self.net_transfer();
+        Self::from_sign(sign, duration)
     }
 
     pub const fn positive(time: WorkingDuration) -> Self {
@@ -42,6 +51,10 @@ impl Transfer {
 
     pub fn is_positive(&self) -> bool {
         self.next_month >= self.previous_month
+    }
+
+    pub fn is_negative(&self) -> bool {
+        !self.is_positive()
     }
 
     pub const fn previous(&self) -> WorkingDuration {
