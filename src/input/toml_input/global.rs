@@ -41,11 +41,15 @@ impl Global {
             .and_then(|config| config.latex_mk_path.as_deref())
     }
 
-    pub fn repeating_in_month(&self, year: Year, month: Month) -> impl Iterator<Item = Entry> + '_ {
+    pub fn repeating_in_month<'a>(
+        &'a self,
+        year: Year,
+        month: Month,
+        mut can_repeat_on: impl FnMut(Date) -> bool + 'a,
+    ) -> impl Iterator<Item = Entry> + 'a {
         (Date::first_day(year, month)..=Date::last_day(year, month))
-            // check if it applies on that date and is not a holiday
-            // TODO: should check for conflicts via month as well?
-            .filter(|date| date.is_workday())
+            // skip dates where the event cannot repeat
+            .filter(move |date| can_repeat_on(*date))
             .flat_map(|date| {
                 self.repeating
                     .iter()

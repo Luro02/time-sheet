@@ -95,7 +95,11 @@ impl ConfigBuilder {
 
         for entry in self
             .global
-            .repeating_in_month(self.month.general().year(), self.month.general().month())
+            .repeating_in_month(
+                self.month.general().year(),
+                self.month.general().month(),
+                |date| date.is_workday(),
+            )
             .map(Entry::from)
         {
             month.add_entry_if_possible(entry);
