@@ -1,4 +1,3 @@
-use indexmap::IndexMap;
 use serde::ser;
 use serde::Serialize;
 
@@ -12,7 +11,7 @@ use crate::{time_stamp, working_duration};
 pub struct Month {
     year: Year,
     month: time::Month,
-    dynamic_entries: IndexMap<String, DynamicEntry>,
+    dynamic_entries: Vec<DynamicEntry>,
     expected_working_duration: Option<WorkingDuration>,
     transfer: Transfer,
     entries: Vec<Entry>,
@@ -28,7 +27,7 @@ impl Month {
         year: Year,
         transfer: Transfer,
         entries: Vec<Entry>,
-        dynamic_entries: IndexMap<String, DynamicEntry>,
+        dynamic_entries: Vec<DynamicEntry>,
         expected_working_duration: Option<WorkingDuration>,
         absence: Vec<(Date, Absence)>,
     ) -> Self {
@@ -103,7 +102,7 @@ impl Month {
             .unwrap_or(working_duration!(40:00))
     }
 
-    pub fn dynamic_entries(&self) -> impl Iterator<Item = (&String, &DynamicEntry)> {
+    pub fn dynamic_entries(&self) -> impl Iterator<Item = &DynamicEntry> {
         self.dynamic_entries.iter()
     }
 
@@ -227,9 +226,9 @@ impl Month {
         let mut mapping = Vec::with_capacity(self.dynamic_entries.len());
         let mut durations = Vec::with_capacity(mapping.capacity());
 
-        for (action, dynamic_entry) in self.dynamic_entries() {
+        for dynamic_entry in self.dynamic_entries() {
             if let Some(duration) = dynamic_entry.duration() {
-                mapping.push((action, dynamic_entry));
+                mapping.push(dynamic_entry);
                 durations.push((mapping.len() - 1, Task::from_duration(duration)));
             }
         }
@@ -246,7 +245,7 @@ impl Month {
         // TODO: what to do with the transfer_tasks and transfer?
 
         for (id, time) in distribution.schedule() {
-            let (action, _dynamic_entry) = mapping[id];
+            let dynamic_entry = mapping[id];
             let mut pause = None;
             let duration = time.duration();
             let date = time.date();
@@ -261,7 +260,7 @@ impl Month {
             let end = start + duration + pause.unwrap_or_default();
 
             entries.push(Entry::new(
-                action.to_string(),
+                dynamic_entry.action().to_string(),
                 date.day(),
                 start,
                 end,

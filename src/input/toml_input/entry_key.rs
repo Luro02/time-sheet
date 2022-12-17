@@ -45,3 +45,11 @@ impl<'de> de::Deserialize<'de> for Key {
 enum InnerKey {
     Day(usize),
 }
+
+impl Default for Key {
+    fn default() -> Self {
+        Self {
+            inner: InnerKey::Day(0),
+        }
+    }
+}

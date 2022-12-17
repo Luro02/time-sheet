@@ -2,8 +2,9 @@ use std::str::FromStr;
 
 use serde::Deserialize;
 
+use crate::input::toml_input::Entry;
 use crate::time::{Date, TimeSpan, TimeStamp, WeekDay};
-use crate::utils::StrExt;
+use crate::utils::{MapEntry, StrExt};
 
 #[derive(Debug, Copy, Clone, PartialEq, Deserialize)]
 #[serde(try_from = "String")]
@@ -185,6 +186,8 @@ impl InternalRepeatingEvent {
 
 #[derive(Debug, Clone, PartialEq, Deserialize)]
 pub struct RepeatingEvent {
+    #[serde(default)]
+    action: String,
     repeats: RepeatSpan,
     #[serde(flatten)]
     internal: InternalRepeatingEvent,
@@ -195,6 +198,7 @@ pub struct RepeatingEvent {
 
 impl RepeatingEvent {
     pub const fn new_fixed_start(
+        action: String,
         repeats: RepeatSpan,
         start: TimeStamp,
         end: TimeStamp,
@@ -202,6 +206,7 @@ impl RepeatingEvent {
         end_date: Option<Date>,
     ) -> Self {
         Self {
+            action,
             repeats,
             internal: InternalRepeatingEvent::FixedStart { start_date },
             start,
@@ -211,6 +216,7 @@ impl RepeatingEvent {
     }
 
     pub const fn new_on_week_days(
+        action: String,
         repeats: RepeatSpan,
         start: TimeStamp,
         end: TimeStamp,
@@ -218,6 +224,7 @@ impl RepeatingEvent {
         end_date: Option<Date>,
     ) -> Self {
         Self {
+            action,
             repeats,
             internal: InternalRepeatingEvent::WeekDays { repeats_on },
             start,
@@ -262,21 +269,45 @@ impl RepeatingEvent {
             self.internal.iter_week_days().collect(),
         )
     }
+
+    pub fn to_entry(&self, date: Date) -> Option<Entry> {
+        if !self.repeats_on(date) {
+            return None;
+        }
+
+        // TODO: should `pause` be added?
+        Some(Entry::new(
+            date.day(),
+            self.action.clone(),
+            self.time_span(),
+            None,
+            None,
+        ))
+    }
+}
+
+impl<'de> MapEntry<'de> for RepeatingEvent {
+    type Key = String;
+    type Value = Self;
+
+    fn new(key: Self::Key, mut value: Self::Value) -> Self {
+        value.action = key;
+        value
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    use std::collections::HashMap;
-
     use pretty_assertions::assert_eq;
 
-    use crate::{date, map, time_stamp};
+    use crate::{date, time_stamp};
 
     #[derive(Debug, Clone, PartialEq, Deserialize)]
     struct TomlParserDummy {
-        repeating: HashMap<String, RepeatingEvent>,
+        #[serde(default, deserialize_with = "crate::utils::deserialize_map_entry")]
+        repeating: Vec<RepeatingEvent>,
     }
 
     #[test]
@@ -290,15 +321,14 @@ mod tests {
                 "repeats_on = [\"Monday\"]\n",
             )),
             Ok(TomlParserDummy {
-                repeating: map! {
-                    "regular catchup meeting".to_string() => RepeatingEvent::new_on_week_days(
-                        RepeatSpan::Week,
-                        time_stamp!(09:15),
-                        time_stamp!(11:00),
-                        vec![WeekDay::Monday],
-                        None,
-                    ),
-                }
+                repeating: vec![RepeatingEvent::new_on_week_days(
+                    "regular catchup meeting".to_string(),
+                    RepeatSpan::Week,
+                    time_stamp!(09:15),
+                    time_stamp!(11:00),
+                    vec![WeekDay::Monday],
+                    None,
+                )]
             })
         );
 
@@ -312,15 +342,14 @@ mod tests {
                 "end_date = \"2023-10-01\"\n",
             )),
             Ok(TomlParserDummy {
-                repeating: map! {
-                    "regular catchup meeting".to_string() => RepeatingEvent::new_fixed_start(
-                        RepeatSpan::Month,
-                        time_stamp!(12:35),
-                        time_stamp!(15:21),
-                        date!(2022:10:01),
-                        Some(date!(2023:10:01)),
-                    ),
-                }
+                repeating: vec![RepeatingEvent::new_fixed_start(
+                    "regular catchup meeting".to_string(),
+                    RepeatSpan::Month,
+                    time_stamp!(12:35),
+                    time_stamp!(15:21),
+                    date!(2022:10:01),
+                    Some(date!(2023:10:01)),
+                )]
             })
         );
     }
@@ -393,6 +422,7 @@ mod tests {
     #[test]
     fn test_repeats_on_weekdays() {
         let event = RepeatingEvent::new_on_week_days(
+            "regular meeting".to_string(),
             RepeatSpan::Week,
             time_stamp!(08:00),
             time_stamp!(12:00),

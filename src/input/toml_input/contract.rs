@@ -3,9 +3,12 @@ use toml::value::Datetime;
 
 use crate::input::WorkingArea;
 use crate::time::WorkingDuration;
+use crate::utils::MapEntry;
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct Contract {
+    #[serde(default)]
+    department: String,
     working_time: WorkingDuration,
     area: WorkingArea,
     wage: Option<f32>,
@@ -15,6 +18,11 @@ pub struct Contract {
 }
 
 impl Contract {
+    /// The department of the contract.
+    pub fn department(&self) -> &str {
+        &self.department
+    }
+
     /// How long the employee has to work each month.
     pub fn expected_working_duration(&self) -> WorkingDuration {
         self.working_time
@@ -45,5 +53,15 @@ impl Contract {
     /// If this is set, then the signature will be replaced with this text.
     pub fn bg_content(&self) -> Option<&str> {
         self.bg_content.as_deref()
+    }
+}
+
+impl<'de> MapEntry<'de> for Contract {
+    type Key = String;
+    type Value = Self;
+
+    fn new(key: Self::Key, mut value: Self::Value) -> Self {
+        value.department = key;
+        value
     }
 }

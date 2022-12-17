@@ -7,6 +7,7 @@ use crate::input::scheduler::{DefaultScheduler, SchedulerOptions};
 use crate::input::scheduler::{ScheduledTime, WorkSchedule};
 use crate::input::{Month, Transfer};
 use crate::time::{Date, TimeStamp, WorkingDuration};
+use crate::utils::MapEntry;
 
 #[derive(Debug, Clone, PartialEq, Deserialize)]
 #[serde(untagged)]
@@ -17,6 +18,8 @@ enum DynamicEntryInput {
 
 #[derive(Debug, Clone, PartialEq, Deserialize)]
 pub struct DynamicEntry {
+    #[serde(default)]
+    action: String,
     #[serde(flatten)]
     input: DynamicEntryInput,
 }
@@ -133,6 +136,11 @@ impl SubAssign<WorkingDuration> for Task {
 
 impl DynamicEntry {
     #[must_use]
+    pub fn action(&self) -> &str {
+        &self.action
+    }
+
+    #[must_use]
     pub fn duration(&self) -> Option<WorkingDuration> {
         match self.input {
             DynamicEntryInput::Fixed { duration } => Some(duration),
@@ -186,53 +194,65 @@ impl DynamicEntry {
     }
 }
 
+impl<'de> MapEntry<'de> for DynamicEntry {
+    type Key = String;
+    type Value = Self;
+
+    fn new(key: Self::Key, mut value: Self::Value) -> Self {
+        value.action = key;
+        value
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use std::collections::HashMap;
 
-    use indexmap::IndexMap;
     use pretty_assertions::assert_eq;
 
     use super::*;
 
     use crate::input::json_input;
     use crate::input::toml_input;
-    use crate::{date, map, transfer, working_duration};
+    use crate::{date, transfer, working_duration};
 
-    #[derive(Debug, Clone, Deserialize)]
+    #[derive(Debug, Clone, PartialEq, Deserialize)]
     struct EntrySections {
-        pub entry: HashMap<String, DynamicEntry>,
+        #[serde(default, deserialize_with = "crate::utils::deserialize_map_entry")]
+        pub entry: Vec<DynamicEntry>,
     }
 
     #[test]
     fn test_deserialize_flex() {
-        let input = concat!("[entry.\"first example\"]\n", "flex = 1\n",);
-
-        let sections: EntrySections = toml::from_str(input).unwrap();
-
         assert_eq!(
-            sections.entry,
-            map! {
-                "first example".to_string() => DynamicEntry {
+            toml::from_str::<'_, EntrySections>(concat!(
+                "[entry.\"first example\"]\n",
+                "flex = 1\n",
+            )),
+            Ok(EntrySections {
+                entry: vec![DynamicEntry {
+                    action: "first example".to_string(),
                     input: DynamicEntryInput::Flex { flex: 1 },
-                },
-            }
+                }]
+            })
         );
     }
 
     #[test]
     fn test_deserialize_fixed() {
-        let input = concat!("[entry.\"another example\"]\n", "duration = \"41:23\"\n",);
-
-        let sections: EntrySections = toml::from_str(input).unwrap();
-
         assert_eq!(
-            sections.entry,
-            map! {
-                "another example".to_string() => DynamicEntry {
-                    input: DynamicEntryInput::Fixed { duration: working_duration!(41:23) },
-                },
-            }
+            toml::from_str::<'_, EntrySections>(concat!(
+                "[entry.\"another example\"]\n",
+                "duration = \"41:23\"\n",
+            )),
+            Ok(EntrySections {
+                entry: vec![DynamicEntry {
+                    action: "another example".to_string(),
+                    input: DynamicEntryInput::Fixed {
+                        duration: working_duration!(41:23)
+                    },
+                }]
+            }),
         );
     }
 
@@ -241,14 +261,8 @@ mod tests {
             input.general().month(),
             input.general().year(),
             input.transfer().unwrap_or_default(),
-            input
-                .entries()
-                .map(|(key, entry)| json_input::Entry::from((key.clone(), entry.clone())))
-                .collect(),
-            input
-                .dynamic_entries()
-                .map(|(key, value)| (key.clone(), value.clone()))
-                .collect(),
+            input.entries().map(json_input::Entry::from).collect(),
+            input.dynamic_entries().cloned().collect(),
             Some(working_duration),
             input.absences().map(|(k, v)| (k, v.clone())).collect(),
         )
@@ -275,14 +289,17 @@ mod tests {
         let mut ids = HashMap::new();
         let mut next_id = 0;
 
-        for (key, _) in month.dynamic_entries() {
-            ids.insert(key.clone(), next_id);
+        for entries in month.dynamic_entries() {
+            ids.insert(entries.action().to_string(), next_id);
             next_id += 1;
         }
 
-        let durations = month
-            .dynamic_entries()
-            .map(|(key, entry)| (ids[key], Task::from_duration(entry.duration().unwrap())));
+        let durations = month.dynamic_entries().map(|entry| {
+            (
+                ids[entry.action()],
+                Task::from_duration(entry.duration().unwrap()),
+            )
+        });
 
         // there are no holidays in july and it has 31 days,
         // of those 5 are sundays in 2022 -> 26 working days.
@@ -364,17 +381,20 @@ mod tests {
 
         let month = month(month_input, working_duration!(20:00));
 
-        let mut ids = IndexMap::new();
+        let mut ids = HashMap::new();
         let mut next_id = 0;
 
-        for (key, _) in month.dynamic_entries() {
-            ids.insert(key.clone(), next_id);
+        for entries in month.dynamic_entries() {
+            ids.insert(entries.action().to_string(), next_id);
             next_id += 1;
         }
 
-        let durations = month
-            .dynamic_entries()
-            .map(|(key, entry)| (ids[key], Task::from_duration(entry.duration().unwrap())));
+        let durations = month.dynamic_entries().map(|entry| {
+            (
+                ids[entry.action()],
+                Task::from_duration(entry.duration().unwrap()),
+            )
+        });
 
         // there are no holidays in july and it has 31 days,
         // of those 5 are sundays in 2022 -> 26 working days.

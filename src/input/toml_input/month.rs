@@ -1,14 +1,14 @@
-use indexmap::IndexMap;
 use serde::Deserialize;
 
 use crate::input::toml_input::{
-    Absence, DynamicEntry, Entry, General, Holiday, Key, MultiEntry, Transfer,
+    Absence, DynamicEntry, Entry, General, Holiday, MultiEntry, Transfer,
 };
 use crate::time::Date;
+use crate::utils::{self, MapEntry};
 
 #[derive(Debug, Clone, Deserialize)]
 #[serde(untagged)]
-pub enum EitherEntry {
+enum EitherEntry {
     MultiEntry(MultiEntry),
     Entry(Entry),
 }
@@ -19,8 +19,34 @@ impl IntoIterator for EitherEntry {
 
     fn into_iter(self) -> Self::IntoIter {
         match self {
-            EitherEntry::MultiEntry(multi_entry) => Box::new(multi_entry.into_iter()),
+            Self::MultiEntry(multi_entry) => Box::new(multi_entry.into_iter()),
+            Self::Entry(entry) => Box::new(std::iter::once(entry)),
+        }
+    }
+}
+
+impl<'a> IntoIterator for &'a EitherEntry {
+    type Item = &'a Entry;
+    type IntoIter = Box<dyn Iterator<Item = Self::Item> + 'a>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        match self {
+            EitherEntry::MultiEntry(multi_entry) => Box::new(multi_entry.iter()),
             EitherEntry::Entry(entry) => Box::new(std::iter::once(entry)),
+        }
+    }
+}
+
+impl<'de> MapEntry<'de> for EitherEntry {
+    type Key = <Entry as MapEntry<'de>>::Key;
+    type Value = Self;
+
+    fn new(key: Self::Key, value: Self::Value) -> Self {
+        match value {
+            Self::MultiEntry(value) => {
+                Self::MultiEntry(<MultiEntry as MapEntry<'_>>::new(key, value))
+            }
+            Self::Entry(value) => Self::Entry(<Entry as MapEntry<'_>>::new(key, value)),
         }
     }
 }
@@ -30,12 +56,12 @@ pub struct Month {
     general: General,
     transfer: Option<Transfer>,
     holiday: Option<Holiday>,
-    #[serde(default)]
-    entries: IndexMap<Key, EitherEntry>,
-    #[serde(default)]
-    dynamic: IndexMap<String, DynamicEntry>,
-    #[serde(default)]
-    absence: IndexMap<Key, Absence>,
+    #[serde(default, deserialize_with = "utils::deserialize_map_entry")]
+    entries: Vec<EitherEntry>,
+    #[serde(default, deserialize_with = "utils::deserialize_map_entry")]
+    dynamic: Vec<DynamicEntry>,
+    #[serde(default, deserialize_with = "utils::deserialize_map_entry")]
+    absence: Vec<Absence>,
 }
 
 impl Month {
@@ -47,18 +73,16 @@ impl Month {
         self.transfer
     }
 
-    pub fn add_entries(&mut self, entries: impl IntoIterator<Item = (Key, EitherEntry)>) {
-        self.entries.extend(entries);
-    }
-
-    pub fn entries(&self) -> impl Iterator<Item = (Key, Entry)> + '_ {
+    pub fn add_entries(&mut self, entries: impl IntoIterator<Item = Entry>) {
         self.entries
-            .clone()
-            .into_iter()
-            .flat_map(|(k, v)| v.into_iter().map(move |v| (k.clone(), v)))
+            .extend(entries.into_iter().map(EitherEntry::Entry));
     }
 
-    pub fn dynamic_entries(&self) -> impl Iterator<Item = (&String, &DynamicEntry)> + '_ {
+    pub fn entries(&self) -> impl Iterator<Item = &Entry> + '_ {
+        self.entries.iter().flatten()
+    }
+
+    pub fn dynamic_entries(&self) -> impl Iterator<Item = &DynamicEntry> + '_ {
         self.dynamic.iter()
     }
 
@@ -69,7 +93,7 @@ impl Month {
     pub fn absences(&self) -> impl Iterator<Item = (Date, &Absence)> + '_ {
         self.absence
             .iter()
-            .map(|(k, v)| (self.make_date(k.day()), v))
+            .map(|absence| (self.make_date(absence.day()), absence))
     }
 
     pub fn holiday(&self) -> Option<&Holiday> {

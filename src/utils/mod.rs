@@ -10,8 +10,11 @@ use serde::de::DeserializeOwned;
 use serde::ser;
 
 mod iterator;
-pub use iterator::*;
 mod macros;
+mod map_entry;
+
+pub use iterator::*;
+pub use map_entry::*;
 
 #[derive(RustEmbed)]
 #[folder = "resources/"]

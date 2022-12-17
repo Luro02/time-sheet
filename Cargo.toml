@@ -27,7 +27,6 @@ const_panic = "0.2"
 
 # make backtraces beautiful
 color-backtrace = "0.5"
-indexmap = { version = "1.9", features = ["serde"] }
 
 # used for logging
 log = "0.4"

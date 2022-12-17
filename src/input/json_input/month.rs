@@ -25,10 +25,7 @@ impl From<toml_input::Month> for MonthFile {
             month.general().year(),
             month.general().month(),
             month.transfer().unwrap_or_default(),
-            month
-                .entries()
-                .map(|(key, entry)| Entry::from((key.clone(), entry.clone())))
-                .collect(),
+            month.entries().map(Entry::from).collect(),
         )
     }
 }

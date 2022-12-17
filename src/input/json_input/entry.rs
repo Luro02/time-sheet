@@ -3,7 +3,7 @@ use std::cmp::{Ord, Ordering, PartialOrd};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-use crate::input::toml_input::{self, Key};
+use crate::input::toml_input;
 use crate::time::{TimeSpan, TimeStamp, WorkingDuration};
 use crate::working_duration;
 
@@ -59,16 +59,22 @@ impl Entry {
     }
 }
 
-impl From<(Key, toml_input::Entry)> for Entry {
-    fn from((key, entry): (Key, toml_input::Entry)) -> Self {
+impl From<&toml_input::Entry> for Entry {
+    fn from(entry: &toml_input::Entry) -> Self {
         Self {
             action: entry.action().to_string(),
-            day: key.day(),
+            day: entry.day(),
             start: entry.start(),
             end: entry.end(),
             pause: entry.pause(),
             vacation: entry.is_vacation(),
         }
+    }
+}
+
+impl From<toml_input::Entry> for Entry {
+    fn from(entry: toml_input::Entry) -> Self {
+        Self::from(&entry)
     }
 }
 

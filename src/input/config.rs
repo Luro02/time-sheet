@@ -2,7 +2,6 @@ use std::fs::File;
 use std::path::{Path, PathBuf};
 
 use anyhow::Context;
-use indexmap::IndexMap;
 
 use crate::input::json_input::{Entry, GlobalFile};
 use crate::input::toml_input;
@@ -85,14 +84,8 @@ impl ConfigBuilder {
             self.month.general().month(),
             self.month.general().year(),
             self.month.transfer().unwrap_or_default(),
-            self.month
-                .entries()
-                .map(|(key, entry)| Entry::from((key.clone(), entry.clone())))
-                .collect(),
-            self.month
-                .dynamic_entries()
-                .map(|(k, v)| (k.clone(), v.clone()))
-                .collect::<IndexMap<_, _>>(),
+            self.month.entries().map(Entry::from).collect(),
+            self.month.dynamic_entries().cloned().collect(),
             Some(contract.expected_working_duration()),
             self.month
                 .absences()
@@ -103,11 +96,7 @@ impl ConfigBuilder {
         for entry in self
             .global
             .repeating_in_month(self.month.general().year(), self.month.general().month())
-            .flat_map(|(key, entry)| {
-                entry
-                    .into_iter()
-                    .map(move |e| Entry::from((key.clone(), e)))
-            })
+            .map(Entry::from)
         {
             month.add_entry_if_possible(entry);
         }

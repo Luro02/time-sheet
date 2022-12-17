@@ -1,6 +1,8 @@
 use serde::Deserialize;
 
-use crate::time::{TimeStamp, WorkingDuration};
+use crate::input::toml_input::Key;
+use crate::time::{TimeSpan, TimeStamp, WorkingDuration};
+use crate::utils::MapEntry;
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct MultiEntry {
@@ -11,8 +13,13 @@ impl MultiEntry {
     pub fn iter(&self) -> impl Iterator<Item = &Entry> {
         self.entries.iter()
     }
+}
 
-    pub fn into_iter(self) -> impl Iterator<Item = Entry> {
+impl IntoIterator for MultiEntry {
+    type Item = Entry;
+    type IntoIter = std::vec::IntoIter<Self::Item>;
+
+    fn into_iter(self) -> Self::IntoIter {
         self.entries.into_iter()
     }
 }
@@ -23,8 +30,26 @@ impl From<Vec<Entry>> for MultiEntry {
     }
 }
 
+impl<'de> MapEntry<'de> for MultiEntry {
+    type Key = <Entry as MapEntry<'de>>::Key;
+    type Value = Self;
+
+    fn new(key: Self::Key, value: Self::Value) -> Self {
+        Self {
+            entries: value
+                .entries
+                .into_iter()
+                .map(|entry| <Entry as MapEntry<'_>>::new(key.clone(), entry))
+                .collect(),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Deserialize)]
 pub struct Entry {
+    // This is the key of the entry, will be added later
+    #[serde(default)]
+    key: Key,
     action: String,
     start: TimeStamp,
     end: TimeStamp,
@@ -40,20 +65,25 @@ pub struct Entry {
 
 impl Entry {
     pub fn new(
+        day: usize,
         action: String,
-        start: TimeStamp,
-        end: TimeStamp,
+        span: TimeSpan,
         pause: Option<WorkingDuration>,
         is_vacation: Option<bool>,
     ) -> Self {
         Self {
+            key: Key::from_day(day),
             action,
-            start,
-            end,
+            start: span.start(),
+            end: span.end(),
             pause,
             is_vacation,
             flex: WorkingDuration::default(),
         }
+    }
+
+    pub fn day(&self) -> usize {
+        self.key.day()
     }
 
     pub fn action(&self) -> &str {
@@ -79,5 +109,17 @@ impl Entry {
     // TODO: make use of the flex
     pub fn flex(&self) -> WorkingDuration {
         self.flex
+    }
+}
+
+impl<'de> MapEntry<'de> for Entry {
+    type Key = Key;
+    type Value = Entry;
+
+    #[must_use]
+    fn new(key: Self::Key, value: Self::Value) -> Self {
+        let mut entry = value;
+        entry.key = key;
+        entry
     }
 }
