@@ -3,6 +3,7 @@ use serde::ser;
 use serde::Serialize;
 
 use crate::input::json_input::{Entry, MonthFile};
+use crate::input::scheduler::SchedulerOptions;
 use crate::input::toml_input::{Absence, DynamicEntry, Holiday, Task, Transfer};
 use crate::time::{self, Date, TimeSpan, TimeStamp, WeekDay, WorkingDuration, Year};
 use crate::{time_stamp, working_duration};
@@ -233,7 +234,14 @@ impl Month {
             }
         }
 
-        let distribution = DynamicEntry::distribute(durations.into_iter(), self);
+        let distribution = DynamicEntry::distribute(
+            durations.into_iter(),
+            self,
+            &SchedulerOptions {
+                daily_limit: working_duration!(06:00),
+                ..Default::default()
+            },
+        );
 
         // TODO: what to do with the transfer_tasks and transfer?
 

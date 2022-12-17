@@ -1,5 +1,6 @@
 use crate::input::scheduler::{
-    AbsenceScheduler, DailyLimiter, FixedScheduler, MonthScheduler, Scheduler, WorkdayScheduler,
+    AbsenceScheduler, DailyLimiter, FixedScheduler, MonthScheduler, Scheduler, SchedulerOptions,
+    WorkdayScheduler,
 };
 use crate::input::Month;
 use crate::input::Transfer;
@@ -18,8 +19,7 @@ pub struct DefaultScheduler<F> {
 
 impl<'a> DefaultScheduler<Box<dyn Fn(Date) -> WorkingDuration + 'a>> {
     #[must_use]
-    pub fn new(month: &'a Month) -> Self {
-        let limiter = DailyLimiter::default();
+    pub fn new(month: &'a Month, options: &SchedulerOptions) -> Self {
         Self {
             scheduler: (
                 WorkdayScheduler::new(),
@@ -30,7 +30,7 @@ impl<'a> DefaultScheduler<Box<dyn Fn(Date) -> WorkingDuration + 'a>> {
                             .map(|e| e.work_duration())
                             .sum::<WorkingDuration>()
                     }),
-                    false,
+                    options,
                 ),
                 AbsenceScheduler::new(
                     Box::new(|date| {
@@ -39,10 +39,9 @@ impl<'a> DefaultScheduler<Box<dyn Fn(Date) -> WorkingDuration + 'a>> {
                             .map(|absence| absence.duration())
                             .sum::<WorkingDuration>()
                     }),
-                    false,
-                    limiter.limit(),
+                    options,
                 ),
-                limiter,
+                DailyLimiter::new(options),
             ),
             month_scheduler: MonthScheduler::new(
                 month.year(),

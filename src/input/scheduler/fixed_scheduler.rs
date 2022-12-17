@@ -1,4 +1,4 @@
-use crate::input::scheduler::Scheduler;
+use crate::input::scheduler::{Scheduler, SchedulerOptions};
 use crate::time::{Date, WorkingDuration};
 use crate::working_duration;
 
@@ -13,8 +13,11 @@ where
     F: Fn(Date) -> WorkingDuration,
 {
     #[must_use]
-    pub const fn new(f: F, should_mix: bool) -> Self {
-        Self { f, should_mix }
+    pub const fn new(f: F, options: &SchedulerOptions) -> Self {
+        Self {
+            f,
+            should_mix: options.should_schedule_with_fixed_entries,
+        }
     }
 }
 

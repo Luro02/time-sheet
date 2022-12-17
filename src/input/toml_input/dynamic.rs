@@ -3,7 +3,7 @@ use std::ops::{Sub, SubAssign};
 
 use serde::Deserialize;
 
-use crate::input::scheduler::DefaultScheduler;
+use crate::input::scheduler::{DefaultScheduler, SchedulerOptions};
 use crate::input::scheduler::{ScheduledTime, WorkSchedule};
 use crate::input::{Month, Transfer};
 use crate::time::{Date, TimeStamp, WorkingDuration};
@@ -144,11 +144,12 @@ impl DynamicEntry {
         // an iterator of the durations how long each entry is and a unique id
         mut entries: impl Iterator<Item = (Id, Task)>,
         month: &Month,
+        options: &SchedulerOptions,
     ) -> ScheduledDistribution<Id> {
         let mut result = Vec::new();
 
         let mut transfer_task = None;
-        let mut scheduler = DefaultScheduler::new(month);
+        let mut scheduler = DefaultScheduler::new(month, options);
 
         for (_, week_dates) in month.year().iter_weeks_in(month.month()) {
             let schedule = WorkSchedule::new(*week_dates.start(), *week_dates.end());
@@ -300,7 +301,7 @@ mod tests {
         // the middle of the month should get the remainder of 4 minutes,
         // -> week 3 would have 04:40
         assert_eq!(
-            DynamicEntry::distribute(durations, &month),
+            DynamicEntry::distribute(durations, &month, &Default::default()),
             ScheduledDistribution::new(
                 transfer!(+00:00),
                 vec![
@@ -394,7 +395,7 @@ mod tests {
         // week 3 has a static entry, which takes up 5:21 hours (00:41 too much)
         // -> the week 4 will only get 04:36 - 00:41 = 03:55
         assert_eq!(
-            DynamicEntry::distribute(durations, &month),
+            DynamicEntry::distribute(durations, &month, &Default::default()),
             ScheduledDistribution::new(
                 transfer!(+00:00),
                 vec![

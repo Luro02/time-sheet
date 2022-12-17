@@ -1,8 +1,8 @@
-use crate::input::scheduler::Scheduler;
+use crate::input::scheduler::{Scheduler, SchedulerOptions};
 use crate::time::{Date, WorkingDuration};
 use crate::{min, working_duration};
 
-/// A scheduler that prevents work from being scheduled on
+/// A scheduler that prevents too much work being scheduled on
 /// dates where the user is absent.
 #[derive(Clone, Debug, PartialEq)]
 pub struct AbsenceScheduler<F> {
@@ -16,11 +16,11 @@ where
     F: Fn(Date) -> WorkingDuration,
 {
     #[must_use]
-    pub const fn new(f: F, should_mix: bool, limit: WorkingDuration) -> Self {
+    pub const fn new(f: F, options: &SchedulerOptions) -> Self {
         Self {
             f,
-            should_mix,
-            limit,
+            should_mix: options.should_schedule_with_absences,
+            limit: options.daily_limit,
         }
     }
 }

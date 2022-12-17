@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
-use crate::input::scheduler::Scheduler;
+use crate::input::scheduler::{Scheduler, SchedulerOptions};
+use crate::min;
 use crate::time::{Date, WorkingDuration};
-use crate::{min, working_duration};
 
 /// A scheduler that limits the amount of work per day.
 #[derive(Debug, Clone, PartialEq)]
@@ -12,25 +12,17 @@ pub struct DailyLimiter {
 }
 
 impl DailyLimiter {
-    const DAILY_LIMIT: WorkingDuration = working_duration!(06:00);
-
     #[must_use]
-    pub fn new(limit: WorkingDuration) -> Self {
+    pub fn new(options: &SchedulerOptions) -> Self {
         Self {
             scheduled: HashMap::new(),
-            limit,
+            limit: options.daily_limit,
         }
     }
 
     #[must_use]
     pub const fn limit(&self) -> WorkingDuration {
         self.limit
-    }
-}
-
-impl Default for DailyLimiter {
-    fn default() -> Self {
-        Self::new(Self::DAILY_LIMIT)
     }
 }
 
