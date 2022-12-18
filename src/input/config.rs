@@ -4,7 +4,7 @@ use std::path::{Path, PathBuf};
 use anyhow::Context;
 
 use crate::input::json_input::{Entry, GlobalFile};
-use crate::input::toml_input;
+use crate::input::toml_input::{self, Contract};
 use crate::input::{Month, Signature};
 use crate::latex_string::LatexString;
 use crate::utils;
@@ -19,23 +19,21 @@ pub struct Config {
 }
 
 pub struct ConfigBuilder {
+    contract: Contract,
     workspace: Option<PathBuf>,
     global: toml_input::Global,
     month: toml_input::Month,
     output: Option<PathBuf>,
     preserve_dir: Option<PathBuf>,
-    department: String,
 }
 
 impl ConfigBuilder {
-    fn new(
-        global: toml_input::Global,
-        month: toml_input::Month,
-        department: String,
-    ) -> anyhow::Result<Self> {
-        global
-            .contract(&department)
-            .ok_or_else(|| anyhow::anyhow!("no contract for department `{}`", department))?;
+    fn new(global: toml_input::Global, month: toml_input::Month) -> anyhow::Result<Self> {
+        let department = month.general().department();
+        let contract = global
+            .contract(department)
+            .ok_or_else(|| anyhow::anyhow!("no contract for department `{}`", department))?
+            .clone();
 
         Ok(Self {
             workspace: None,
@@ -43,7 +41,7 @@ impl ConfigBuilder {
             preserve_dir: None,
             global,
             month,
-            department,
+            contract,
         })
     }
 
@@ -78,15 +76,13 @@ impl ConfigBuilder {
             }
         });
 
-        let contract = self.global.contract(&self.department).unwrap();
-
         let mut month = Month::new(
             self.month.general().month(),
             self.month.general().year(),
             self.month.transfer().unwrap_or_default(),
             self.month.entries().map(Entry::from).collect(),
             self.month.dynamic_entries().cloned().collect(),
-            Some(contract.expected_working_duration()),
+            Some(self.contract.expected_working_duration()),
             self.month
                 .absences()
                 .map(|(k, v)| (k, v.clone()))
@@ -113,8 +109,8 @@ impl ConfigBuilder {
             month,
             global_file: GlobalFile::from((
                 self.global.about().clone(),
-                self.department,
-                contract.clone(),
+                self.contract.department().to_string(),
+                self.contract,
             )),
             signature: {
                 if let (Some(month_signature), Some(global_signature)) = (
@@ -140,22 +136,20 @@ impl Config {
     pub fn try_from_toml(
         month: toml_input::Month,
         global: toml_input::Global,
-        department: impl Into<String>,
     ) -> anyhow::Result<ConfigBuilder> {
-        ConfigBuilder::new(global, month, department.into())
+        ConfigBuilder::new(global, month)
     }
 
     pub fn try_from_toml_files(
         month: impl AsRef<Path>,
         global: impl AsRef<Path>,
-        department: impl Into<String>,
     ) -> anyhow::Result<ConfigBuilder> {
         let month: toml_input::Month = utils::toml_from_reader(File::open(month.as_ref())?)
             .with_context(|| format!("failed to parse `{}`", month.as_ref().display()))?;
         let global: toml_input::Global = utils::toml_from_reader(File::open(global.as_ref())?)
             .with_context(|| format!("failed to parse `{}`", global.as_ref().display()))?;
 
-        Self::try_from_toml(month, global, department)
+        Self::try_from_toml(month, global)
     }
 
     pub fn output(&self) -> &Path {

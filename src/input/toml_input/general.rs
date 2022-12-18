@@ -6,6 +6,7 @@ use crate::time::{Date, Month, Year};
 pub struct General {
     month: Month,
     year: Year,
+    department: String,
     signature: Option<GeneralSignature>,
 }
 
@@ -31,5 +32,9 @@ impl General {
 
     pub const fn signature(&self) -> Option<&GeneralSignature> {
         self.signature.as_ref()
+    }
+
+    pub fn department(&self) -> &str {
+        &self.department
     }
 }

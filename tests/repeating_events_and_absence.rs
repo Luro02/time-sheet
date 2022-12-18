@@ -37,6 +37,7 @@ fn test_repeating_and_absence() {
         "[general]\n",
         "month = 11\n",
         "year = 2022\n",
+        "department = \"MENSA\"\n",
         "\n",
         "[absence.08]\n",
         "start = \"08:00\"\n",
@@ -47,7 +48,7 @@ fn test_repeating_and_absence() {
     ))
     .expect("toml should be valid");
 
-    let config = Config::try_from_toml(month, global, "MENSA")
+    let config = Config::try_from_toml(month, global)
         .expect("config should be valid")
         .build();
 

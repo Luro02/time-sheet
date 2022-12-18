@@ -16,6 +16,7 @@ fn test_transfer_is_optional() {
         "[general]\n",
         "month = 11\n",
         "year = 2022\n",
+        "department = \"MENSA\"\n",
         "\n",
     ))
     .expect("transfer section should be optional");
@@ -51,6 +52,7 @@ fn test_transfer_previous_month() {
         "[general]\n",
         "month = 11\n",
         "year = 2022\n",
+        "department = \"MENSA\"\n",
         "\n",
         "[transfer]\n",
         "prev = \"02:00\"\n",
@@ -61,7 +63,7 @@ fn test_transfer_previous_month() {
     ))
     .expect("toml should be valid");
 
-    let config = Config::try_from_toml(month, global, "MENSA")
+    let config = Config::try_from_toml(month, global)
         .expect("config should be valid")
         .build();
 
@@ -157,6 +159,7 @@ fn test_transfer_previous_and_next_month() {
         "[general]\n",
         "month = 11\n",
         "year = 2022\n",
+        "department = \"MENSA\"\n",
         "\n",
         "[transfer]\n",
         "prev = \"02:00\"\n",
@@ -167,7 +170,7 @@ fn test_transfer_previous_and_next_month() {
     ))
     .expect("toml should be valid");
 
-    let config = Config::try_from_toml(month, global, "MENSA")
+    let config = Config::try_from_toml(month, global)
         .expect("config should be valid")
         .build();
 
