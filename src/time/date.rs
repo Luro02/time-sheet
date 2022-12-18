@@ -1,7 +1,7 @@
 use core::fmt;
 use core::iter::Step;
 use core::ops::{Add, AddAssign, Sub, SubAssign};
-use std::str::FromStr;
+use core::str::FromStr;
 
 use serde::Deserialize;
 use thiserror::Error;
@@ -33,19 +33,11 @@ pub struct Date {
     day: usize,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Error)]
-#[error("{year:04}-{month:02}-{day:02}: not a valid date")]
-pub struct InvalidDate {
-    year: Year,
-    month: Month,
-    day: usize,
-}
-
 impl Date {
     pub fn new(year: impl Into<Year>, month: Month, day: usize) -> Result<Self, InvalidDate> {
         let year = year.into();
         if year.number_of_days_in_month(month) < day || day == 0 {
-            return Err(InvalidDate { year, month, day });
+            return Err(InvalidDate::InvalidDay { year, month, day });
         }
 
         Ok(Self { year, month, day })
@@ -55,44 +47,6 @@ impl Date {
     #[must_use]
     pub const unsafe fn new_unchecked(year: Year, month: Month, day: usize) -> Self {
         Self { year, month, day }
-    }
-
-    pub const fn week_day(&self) -> WeekDay {
-        self.year().week_day(self.month(), self.day())
-    }
-
-    pub const fn year(&self) -> Year {
-        self.year
-    }
-
-    pub const fn month(&self) -> Month {
-        self.month
-    }
-
-    pub const fn day(&self) -> usize {
-        self.day
-    }
-
-    // TODO: write some good tests for this, also take care of https://github.com/kit-sdq/TimeSheetGenerator/pull/121
-    pub const fn is_holiday(&self) -> bool {
-        // check for christmas dates:
-        self.month.is_eq(&Month::December) && (self.day() == 25 || self.day() == 26) ||
-        // new year's day
-        self.month.is_eq(&Month::January) && self.day() == 1 ||
-        self.month.is_eq(&Month::January) && self.day() == 6 ||
-        self.month.is_eq(&Month::November) && self.day() == 1
-
-        // TODO: add remaining holidays
-        // https://github.com/kit-sdq/TimeSheetGenerator/blob/master/src/main/java/checker/holiday/GermanyHolidayChecker.java
-        // https://www.dgb.de/gesetzliche-feiertage-deutschland-2020-2021#badenwuerttemberg
-        // https://crates.io/crates/json_typegen/0.5.0
-    }
-
-    // TODO: might make this more powerful
-    pub fn formatted(&self, f: &str) -> String {
-        f.replace("{year}", &format!("{:04}", self.year()))
-            .replace("{month}", &format!("{:02}", self.month()))
-            .replace("{day}", &format!("{:02}", self.day()))
     }
 
     /// Returns the date of the first day as a date in the month.
@@ -113,100 +67,6 @@ impl Date {
             month,
             day: year.number_of_days_in_month(month),
         }
-    }
-
-    #[must_use]
-    const fn apply_offset(week_day: WeekDay, day: usize) -> usize {
-        // TODO: could be replaced with week_day.as_usize() - 1
-        let offset = {
-            match week_day {
-                WeekDay::Monday => 0,
-                WeekDay::Tuesday => 1,
-                WeekDay::Wednesday => 2,
-                WeekDay::Thursday => 3,
-                WeekDay::Friday => 4,
-                WeekDay::Saturday => 5,
-                WeekDay::Sunday => 6,
-            }
-        };
-
-        // In rust divisions always round down.
-        // Dividing any number x by 7 for which holds:
-        // 7 * n <= x < 7 * (n + 1) will result in n
-        //
-        // The first week number is 1 and not 0, so to each day 7 is added.
-        //
-        // Then the offset is added to the day, so that all mondays are a multiple of 7.
-        // (one can calculate the week_numbers for weeks starting not on monday the same
-        //  way, just make the day where the week starts a multiple of 7)
-        //
-        // Months starting with a monday will have the days 1, 8, 15, 22, 29
-        // The offset is added so that they will be 0, 7, 14, 21, 28 (or with the + 7):
-        // 7, 14, 21, 28, 35
-        //  7 / 7 = 1
-        // 14 / 7 = 2
-        // 21 / 7 = 3
-        // 28 / 7 = 4
-        // 35 / 7 = 5
-        offset + 7 - 1 + day
-    }
-
-    #[must_use]
-    pub const fn week_number(&self) -> usize {
-        Self::apply_offset(
-            Self::first_day(self.year(), self.month()).week_day(),
-            self.day(),
-        ) / 7
-    }
-
-    /// Returns the date of the last day in the current week.
-    #[must_use]
-    pub const fn week_end(&self) -> Self {
-        Self {
-            year: self.year(),
-            month: self.month(),
-            day: {
-                let distance = self.week_day().days_until(WeekDay::Sunday);
-                if self.day() + distance > self.year().number_of_days_in_month(self.month()) {
-                    self.year().number_of_days_in_month(self.month())
-                } else {
-                    self.day() + distance
-                }
-            },
-        }
-    }
-
-    #[must_use]
-    pub const fn week_start(&self) -> Self {
-        Self {
-            year: self.year(),
-            month: self.month(),
-            day: {
-                let distance = WeekDay::Monday.days_until(self.week_day());
-                if self.day() <= distance {
-                    1
-                } else {
-                    self.day() - distance
-                }
-            },
-        }
-    }
-
-    #[must_use]
-    pub const fn is_workday(&self) -> bool {
-        !self.is_holiday() && !self.week_day().is_eq(&WeekDay::Sunday)
-    }
-
-    #[must_use]
-    const fn ordinal(&self) -> u16 {
-        let mut result = 0;
-
-        // -1 to get the index of the previous month
-        // will not cause a panic, because the first month
-        // (january) has the number 1
-        result += self.year().cumulative_days()[self.month().as_usize() - 1] as u16;
-
-        result + self.day() as u16
     }
 
     #[must_use]
@@ -242,6 +102,139 @@ impl Date {
             month: current_month,
             day,
         }
+    }
+
+    #[must_use]
+    const fn from_days_since_base_date(days: usize) -> Self {
+        let year = Year::from_days_since_base_date(days);
+        // NOTE: +1 because the ordinal of the first day of the year is 1 and not 0
+        let ordinal = (days - year.days_since_base_date()) + 1;
+        Self::from_ordinal(year, ordinal as u16)
+    }
+}
+
+impl Date {
+    // TODO: might make this more powerful
+    pub fn formatted(&self, f: &str) -> String {
+        f.replace("{year}", &format!("{:04}", self.year()))
+            .replace("{month}", &format!("{:02}", self.month()))
+            .replace("{day}", &format!("{:02}", self.day()))
+    }
+}
+
+impl Date {
+    pub const fn week_day(&self) -> WeekDay {
+        self.year().week_day(self.month(), self.day())
+    }
+
+    pub const fn year(&self) -> Year {
+        self.year
+    }
+
+    pub const fn month(&self) -> Month {
+        self.month
+    }
+
+    pub const fn day(&self) -> usize {
+        self.day
+    }
+
+    // TODO: write some good tests for this, also take care of https://github.com/kit-sdq/TimeSheetGenerator/pull/121
+    pub const fn is_holiday(&self) -> bool {
+        // check for christmas dates:
+        self.month.is_eq(&Month::December) && (self.day() == 25 || self.day() == 26) ||
+        // new year's day
+        self.month.is_eq(&Month::January) && self.day() == 1 ||
+        self.month.is_eq(&Month::January) && self.day() == 6 ||
+        self.month.is_eq(&Month::November) && self.day() == 1
+
+        // TODO: add remaining holidays
+        // https://github.com/kit-sdq/TimeSheetGenerator/blob/master/src/main/java/checker/holiday/GermanyHolidayChecker.java
+        // https://www.dgb.de/gesetzliche-feiertage-deutschland-2020-2021#badenwuerttemberg
+        // https://crates.io/crates/json_typegen/0.5.0
+    }
+
+    #[must_use]
+    const fn apply_offset(week_day: WeekDay, day: usize) -> usize {
+        let offset = week_day as usize - 1;
+
+        // In rust divisions always round down.
+        // Dividing any number x by 7 for which holds:
+        // 7 * n <= x < 7 * (n + 1) will result in n
+        //
+        // The first week number is 1 and not 0, so to each day 7 is added.
+        //
+        // Then the offset is added to the day, so that all mondays are a multiple of 7.
+        // (one can calculate the week_numbers for weeks starting not on monday the same
+        //  way, just make the day where the week starts a multiple of 7)
+        //
+        // Months starting with a monday will have the days 1, 8, 15, 22, 29
+        // The offset is added so that they will be 0, 7, 14, 21, 28 (or with the + 7):
+        // 7, 14, 21, 28, 35
+        //  7 / 7 = 1
+        // 14 / 7 = 2
+        // 21 / 7 = 3
+        // 28 / 7 = 4
+        // 35 / 7 = 5
+        day + 7 + offset - 1
+    }
+
+    #[must_use]
+    pub const fn week_number(&self) -> usize {
+        Self::apply_offset(
+            Self::first_day(self.year(), self.month()).week_day(),
+            self.day(),
+        ) / 7
+    }
+
+    #[must_use]
+    pub const fn week_start(&self) -> Self {
+        Self {
+            year: self.year(),
+            month: self.month(),
+            day: {
+                let distance = WeekDay::Monday.days_until(self.week_day());
+                if self.day() <= distance {
+                    1
+                } else {
+                    self.day() - distance
+                }
+            },
+        }
+    }
+
+    /// Returns the date of the last day in the current week.
+    #[must_use]
+    pub const fn week_end(&self) -> Self {
+        Self {
+            year: self.year(),
+            month: self.month(),
+            day: {
+                let distance = self.week_day().days_until(WeekDay::Sunday);
+                if self.day() + distance > self.year().number_of_days_in_month(self.month()) {
+                    self.year().number_of_days_in_month(self.month())
+                } else {
+                    self.day() + distance
+                }
+            },
+        }
+    }
+
+    #[must_use]
+    pub const fn is_workday(&self) -> bool {
+        !self.is_holiday() && !self.week_day().is_eq(&WeekDay::Sunday)
+    }
+
+    #[must_use]
+    const fn ordinal(&self) -> u16 {
+        let mut result = 0;
+
+        // -1 to get the index of the previous month
+        // will not cause a panic, because the first month
+        // (january) has the number 1
+        result += self.year().cumulative_days()[self.month().as_usize() - 1] as u16;
+
+        result + self.day() as u16
     }
 
     #[must_use]
@@ -286,14 +279,6 @@ impl Date {
             ordinal -= days;
         }
 
-        Self::from_ordinal(year, ordinal as u16)
-    }
-
-    #[must_use]
-    const fn from_days_since_base_date(days: usize) -> Self {
-        let year = Year::from_days_since_base_date(days);
-        // NOTE: +1 because the ordinal of the first day of the year is 1 and not 0
-        let ordinal = (days - year.days_since_base_date()) + 1;
         Self::from_ordinal(year, ordinal as u16)
     }
 
@@ -382,6 +367,18 @@ impl Date {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Error)]
+pub enum InvalidDate {
+    #[error("\"{input}\" is not valid date. Expected format: \"YYYY-MM-DD\"")]
+    ParseDateError { input: String },
+    #[error("{day:02} is not a valid day for {year:04}-{month:02}")]
+    InvalidDay {
+        year: Year,
+        month: Month,
+        day: usize,
+    },
+}
+
 impl Add<usize> for Date {
     type Output = Self;
 
@@ -438,46 +435,62 @@ impl Step for Date {
     }
 }
 
-#[derive(Debug, Clone, Error, PartialEq, Eq)]
-#[error("`{}`: not a valid date, format must be `YYYY-MM-DD`", string)]
-pub struct ParseDateError {
-    string: String,
+fn parse_or_err(input: &str) -> Result<usize, InvalidDate> {
+    input
+        .parse::<usize>()
+        .map_err(|_| InvalidDate::ParseDateError {
+            input: input.to_string(),
+        })
 }
 
 impl FromStr for Date {
-    type Err = ParseDateError;
+    type Err = InvalidDate;
 
     fn from_str(string: &str) -> Result<Self, Self::Err> {
         if let [Some(year), Some(month), Some(day)] = string.split_exact::<3>("-") {
-            let year = Year::new(year.parse::<usize>().map_err(|_| ParseDateError {
-                string: string.to_string(),
-            })?);
-            let month = Month::try_from(month.parse::<usize>().map_err(|_| ParseDateError {
-                string: string.to_string(),
-            })?)
-            .map_err(|_| ParseDateError {
-                string: string.to_string(),
-            })?;
-            let day = day.parse().map_err(|_| ParseDateError {
-                string: string.to_string(),
-            })?;
+            let year = Year::new(parse_or_err(year)?);
+            let month =
+                Month::try_from(parse_or_err(month)?).map_err(|_| InvalidDate::ParseDateError {
+                    input: string.to_string(),
+                })?;
+            let day = parse_or_err(day)?;
 
-            Ok(Self::new(year, month, day).map_err(|_| ParseDateError {
-                string: string.to_string(),
-            })?)
+            Self::new(year, month, day)
         } else {
-            Err(ParseDateError {
-                string: string.to_string(),
+            Err(InvalidDate::ParseDateError {
+                input: string.to_string(),
             })
         }
     }
 }
 
 impl TryFrom<String> for Date {
-    type Error = ParseDateError;
+    type Error = <Self as FromStr>::Err;
 
     fn try_from(value: String) -> Result<Self, Self::Error> {
         Self::from_str(value.as_str())
+    }
+}
+
+impl From<Date> for toml::value::Date {
+    fn from(date: Date) -> Self {
+        toml::value::Date {
+            year: date.year().as_usize() as u16,
+            month: date.month() as u8,
+            day: date.day() as u8,
+        }
+    }
+}
+
+impl TryFrom<toml::value::Date> for Date {
+    type Error = InvalidDate;
+
+    fn try_from(date: toml::value::Date) -> Result<Self, Self::Error> {
+        Self::new(
+            Year::new(date.year as usize),
+            Month::try_from(date.month as usize).unwrap(),
+            date.day as usize,
+        )
     }
 }
 

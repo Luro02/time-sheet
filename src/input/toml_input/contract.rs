@@ -1,19 +1,20 @@
-use serde::Deserialize;
-use toml::value::Datetime;
+use serde::{Deserialize, Serialize};
 
 use crate::input::WorkingArea;
-use crate::time::WorkingDuration;
-use crate::utils::MapEntry;
+use crate::time::{Date, WorkingDuration};
+use crate::utils::{self, MapEntry};
 
-#[derive(Debug, Clone, Deserialize)]
+#[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct Contract {
     #[serde(default)]
     department: String,
     working_time: WorkingDuration,
     area: WorkingArea,
     wage: Option<f32>,
-    start_date: Option<Datetime>,
-    end_date: Option<Datetime>,
+    #[serde(with = "utils::serde_toml_local_date")]
+    start_date: Date,
+    #[serde(with = "utils::serde_toml_local_date")]
+    end_date: Date,
     bg_content: Option<String>,
 }
 
@@ -39,13 +40,13 @@ impl Contract {
     }
 
     /// When the contract starts.
-    pub fn start_date(&self) -> Option<&Datetime> {
-        self.start_date.as_ref()
+    pub fn start_date(&self) -> Date {
+        self.start_date
     }
 
     /// When the contract ends.
-    pub fn end_date(&self) -> Option<&Datetime> {
-        self.end_date.as_ref()
+    pub fn end_date(&self) -> Date {
+        self.end_date
     }
 
     /// In the bottom left of the final PDF is a small signature.

@@ -38,6 +38,44 @@ where
     Ok(toml::from_str(&date)?)
 }
 
+pub mod serde_toml_local_date {
+    use core::fmt;
+
+    use toml::value::{Date, Datetime};
+
+    use serde::de::{self, Deserialize};
+    use serde::ser::{self, Serialize};
+
+    // NOTE: `toml::value::Datetime` is used, because
+    // `toml::value::Date` does not implement `Deserialize`
+
+    pub fn serialize<S, T>(date: &T, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: ser::Serializer,
+        T: Into<Date> + Clone,
+    {
+        Datetime {
+            date: Some(date.clone().into()),
+            time: None,
+            offset: None,
+        }
+        .serialize(serializer)
+    }
+
+    pub fn deserialize<'de, D, T>(deserializer: D) -> Result<T, D::Error>
+    where
+        D: de::Deserializer<'de>,
+        T: TryFrom<Date>,
+        T::Error: fmt::Display,
+    {
+        let date = Datetime::deserialize(deserializer)?
+            .date
+            .ok_or_else(|| de::Error::custom("expected a date"))?;
+
+        T::try_from(date).map_err(de::Error::custom)
+    }
+}
+
 // TODO: what about multiple overflow? or when base + to_add overflows?
 #[must_use]
 pub fn overflowing_add(base: u64, to_add: u64, limit: u64) -> u64 {
