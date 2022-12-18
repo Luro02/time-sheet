@@ -65,6 +65,7 @@ impl DurationExt for Duration {
 }
 
 mod date;
+pub mod holiday;
 mod month;
 mod time_span;
 mod time_stamp;

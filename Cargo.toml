@@ -22,6 +22,7 @@ rust-embed = "6.2"
 fs_extra = "1.2"
 v_latexescape = "0.13"
 static_assertions = "1.1"
+
 # can be removed once const-fns panic can have arguments
 const_panic = "0.2"
 
@@ -38,3 +39,4 @@ seahorse = "1.1"
 [dev-dependencies]
 pretty_assertions = "1.0"
 time = { version = "0.3", default-features = false }
+minreq = { version = "2.6", features = ["https"] }

@@ -6,7 +6,7 @@ use core::str::FromStr;
 use serde::Deserialize;
 use thiserror::Error;
 
-use crate::time::{Month, WeekDay, Year};
+use crate::time::{holiday, Month, WeekDay, Year};
 use crate::utils::StrExt;
 
 #[macro_export]
@@ -141,17 +141,7 @@ impl Date {
 
     // TODO: write some good tests for this, also take care of https://github.com/kit-sdq/TimeSheetGenerator/pull/121
     pub const fn is_holiday(&self) -> bool {
-        // check for christmas dates:
-        self.month.is_eq(&Month::December) && (self.day() == 25 || self.day() == 26) ||
-        // new year's day
-        self.month.is_eq(&Month::January) && self.day() == 1 ||
-        self.month.is_eq(&Month::January) && self.day() == 6 ||
-        self.month.is_eq(&Month::November) && self.day() == 1
-
-        // TODO: add remaining holidays
-        // https://github.com/kit-sdq/TimeSheetGenerator/blob/master/src/main/java/checker/holiday/GermanyHolidayChecker.java
-        // https://www.dgb.de/gesetzliche-feiertage-deutschland-2020-2021#badenwuerttemberg
-        // https://crates.io/crates/json_typegen/0.5.0
+        holiday::is_holiday(*self)
     }
 
     #[must_use]
@@ -249,7 +239,7 @@ impl Date {
     }
 
     #[must_use]
-    const fn add_days(self, days: usize) -> Self {
+    pub(super) const fn add_days(self, days: usize) -> Self {
         let mut ordinal = self.ordinal() as usize + days;
         let mut year = self.year();
 
@@ -263,7 +253,7 @@ impl Date {
     }
 
     #[must_use]
-    const fn sub_days(self, days: usize) -> Self {
+    pub(super) const fn sub_days(self, days: usize) -> Self {
         let mut ordinal = self.ordinal() as usize;
         let mut year = self.year();
 
