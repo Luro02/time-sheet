@@ -9,27 +9,20 @@ use time_sheet::{time_stamp, working_duration};
 
 use pretty_assertions::assert_eq;
 
+mod common;
+
 #[test]
 fn test_repeating_and_absence() {
-    let global: Global = toml::from_str(concat!(
-        //
-        "[about]\n",
-        "name = \"John Smith\"\n",
-        "staff_id = 1234567\n",
-        "\n",
-        "[contract.MENSA]\n",
-        "working_time = \"40:00\"\n",
-        "area = \"gf\"\n",
-        "wage = 12.00\n",
-        "start_date = 2009-10-01\n",
-        "end_date = 2239-09-30\n",
-        "\n",
-        "[repeating.\"regular work\"]\n",
-        "start = \"08:00\"\n",
-        "end = \"12:00\"\n",
-        "repeats_on = [\"Tuesday\", \"Friday\"]\n",
-        "repeats = \"weekly\"\n"
-    ))
+    let global: Global = toml::from_str(
+        &(common::make_global(working_duration!(40:00))
+            + concat!(
+                "[repeating.\"regular work\"]\n",
+                "start = \"08:00\"\n",
+                "end = \"12:00\"\n",
+                "repeats_on = [\"Tuesday\", \"Friday\"]\n",
+                "repeats = \"weekly\"\n"
+            )),
+    )
     .expect("toml should be valid");
 
     let month: toml_input::Month = toml::from_str(concat!(

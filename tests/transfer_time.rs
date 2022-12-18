@@ -5,9 +5,11 @@ use time_sheet::input::json_input::{Entry, MonthFile};
 use time_sheet::input::toml_input::{self, Global};
 use time_sheet::input::Config;
 use time_sheet::time::{Month, Year};
-use time_sheet::{time_stamp, transfer};
+use time_sheet::{time_stamp, transfer, working_duration};
 
 use pretty_assertions::assert_eq;
+
+mod common;
 
 #[test]
 fn test_transfer_is_optional() {
@@ -26,25 +28,16 @@ fn test_transfer_is_optional() {
 
 #[test]
 fn test_transfer_previous_month() {
-    let global: Global = toml::from_str(concat!(
-        //
-        "[about]\n",
-        "name = \"John Smith\"\n",
-        "staff_id = 1234567\n",
-        "\n",
-        "[contract.MENSA]\n",
-        "working_time = \"15:00\"\n",
-        "area = \"gf\"\n",
-        "wage = 12.00\n",
-        "start_date = 2009-10-01\n",
-        "end_date = 2239-09-30\n",
-        "\n",
-        "[repeating.\"regular work\"]\n",
-        "start = \"08:00\"\n",
-        "end = \"10:00\"\n",
-        "repeats_on = [\"Tuesday\"]\n",
-        "repeats = \"weekly\"\n"
-    ))
+    let global: Global = toml::from_str(
+        &(common::make_global(working_duration!(15:00))
+            + concat!(
+                "[repeating.\"regular work\"]\n",
+                "start = \"08:00\"\n",
+                "end = \"10:00\"\n",
+                "repeats_on = [\"Tuesday\"]\n",
+                "repeats = \"weekly\"\n"
+            )),
+    )
     .expect("toml should be valid");
 
     let month: toml_input::Month = toml::from_str(concat!(
@@ -133,25 +126,16 @@ fn test_transfer_previous_month() {
 
 #[test]
 fn test_transfer_previous_and_next_month() {
-    let global: Global = toml::from_str(concat!(
-        //
-        "[about]\n",
-        "name = \"John Smith\"\n",
-        "staff_id = 1234567\n",
-        "\n",
-        "[contract.MENSA]\n",
-        "working_time = \"15:00\"\n",
-        "area = \"gf\"\n",
-        "wage = 12.00\n",
-        "start_date = 2009-10-01\n",
-        "end_date = 2239-09-30\n",
-        "\n",
-        "[repeating.\"regular work\"]\n",
-        "start = \"08:00\"\n",
-        "end = \"10:00\"\n",
-        "repeats_on = [\"Tuesday\"]\n",
-        "repeats = \"weekly\"\n"
-    ))
+    let global: Global = toml::from_str(
+        &(common::make_global(working_duration!(15:00))
+            + concat!(
+                "[repeating.\"regular work\"]\n",
+                "start = \"08:00\"\n",
+                "end = \"10:00\"\n",
+                "repeats_on = [\"Tuesday\"]\n",
+                "repeats = \"weekly\"\n"
+            )),
+    )
     .expect("toml should be valid");
 
     let month: toml_input::Month = toml::from_str(concat!(
