@@ -46,14 +46,15 @@ impl Global {
         year: Year,
         month: Month,
         mut can_repeat_on: impl FnMut(Date) -> bool + 'a,
+        department: &'a str,
     ) -> impl Iterator<Item = Entry> + 'a {
         (Date::first_day(year, month)..=Date::last_day(year, month))
             // skip dates where the event cannot repeat
             .filter(move |date| can_repeat_on(*date))
-            .flat_map(|date| {
+            .flat_map(move |date| {
                 self.repeating
                     .iter()
-                    .filter_map(move |event| event.to_entry(date))
+                    .filter_map(move |event| event.to_entry(date, department))
             })
     }
 }

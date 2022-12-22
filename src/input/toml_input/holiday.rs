@@ -9,8 +9,13 @@ const fn default_months() -> usize {
     1
 }
 
+const fn bool_true() -> bool {
+    true
+}
+
 #[derive(Debug, Clone, Deserialize)]
 pub struct Holiday {
+    #[serde(default = "bool_true")]
     implicit: bool,
     #[serde(default)]
     start: Option<TimeStamp>,

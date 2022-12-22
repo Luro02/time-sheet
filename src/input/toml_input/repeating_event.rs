@@ -194,6 +194,8 @@ pub struct RepeatingEvent {
     end_date: Option<Date>,
     start: TimeStamp,
     end: TimeStamp,
+    #[serde(default)]
+    department: Option<String>,
 }
 
 impl RepeatingEvent {
@@ -204,6 +206,7 @@ impl RepeatingEvent {
         end: TimeStamp,
         start_date: Date,
         end_date: Option<Date>,
+        department: Option<String>,
     ) -> Self {
         Self {
             action,
@@ -212,6 +215,7 @@ impl RepeatingEvent {
             start,
             end,
             end_date,
+            department,
         }
     }
 
@@ -222,6 +226,7 @@ impl RepeatingEvent {
         end: TimeStamp,
         repeats_on: Vec<WeekDay>,
         end_date: Option<Date>,
+        department: Option<String>,
     ) -> Self {
         Self {
             action,
@@ -230,6 +235,7 @@ impl RepeatingEvent {
             start,
             end,
             end_date,
+            department,
         }
     }
 
@@ -270,8 +276,13 @@ impl RepeatingEvent {
         )
     }
 
-    pub fn to_entry(&self, date: Date) -> Option<Entry> {
+    pub fn to_entry(&self, date: Date, department: &str) -> Option<Entry> {
         if !self.repeats_on(date) {
+            return None;
+        }
+
+        // If a department is specified, only apply if the department matches
+        if self.department.is_some() && self.department.as_deref() != Some(department) {
             return None;
         }
 
@@ -328,6 +339,7 @@ mod tests {
                     time_stamp!(11:00),
                     vec![WeekDay::Monday],
                     None,
+                    None,
                 )]
             })
         );
@@ -349,6 +361,7 @@ mod tests {
                     time_stamp!(15:21),
                     date!(2022:10:01),
                     Some(date!(2023:10:01)),
+                    None,
                 )]
             })
         );
@@ -427,6 +440,7 @@ mod tests {
             time_stamp!(08:00),
             time_stamp!(12:00),
             vec![WeekDay::Tuesday, WeekDay::Friday],
+            None,
             None,
         );
 

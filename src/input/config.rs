@@ -95,6 +95,7 @@ impl ConfigBuilder {
                 self.month.general().year(),
                 self.month.general().month(),
                 |date| date.is_workday(),
+                self.contract.department(),
             )
             .map(Entry::from)
         {
