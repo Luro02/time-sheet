@@ -90,10 +90,10 @@ impl Month {
         Date::new(self.general.year(), self.general.month(), day).expect("failed to make date")
     }
 
-    pub fn absences(&self) -> impl Iterator<Item = (Date, &Absence)> + '_ {
+    pub fn absences(&self) -> impl Iterator<Item = (Date, Absence)> + '_ {
         self.absence
             .iter()
-            .map(|absence| (self.make_date(absence.day()), absence))
+            .flat_map(|absence| absence.to_date_absences(|d| self.make_date(d)))
     }
 
     pub fn holiday(&self) -> Option<&Holiday> {

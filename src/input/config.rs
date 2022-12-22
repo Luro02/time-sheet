@@ -83,10 +83,7 @@ impl ConfigBuilder {
             self.month.entries().map(Entry::from).collect(),
             self.month.dynamic_entries().cloned().collect(),
             Some(self.contract.expected_working_duration()),
-            self.month
-                .absences()
-                .map(|(k, v)| (k, v.clone()))
-                .collect::<Vec<_>>(),
+            self.month.absences().collect::<Vec<_>>(),
         );
 
         for entry in self
