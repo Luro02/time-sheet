@@ -2,13 +2,16 @@ use std::path::{Path, PathBuf};
 
 use serde::Deserialize;
 
-use crate::input::toml_input::{About, Contract, Entry, RepeatingEvent};
+use crate::input::toml_input::{self, About, Contract, Entry, RepeatingEvent};
 use crate::time::{Date, Month, Year};
 use crate::utils;
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct Config {
+    #[serde(default)]
     latex_mk_path: Option<PathBuf>,
+    #[serde(default)]
+    output_format: Option<String>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -56,5 +59,28 @@ impl Global {
                     .iter()
                     .filter_map(move |event| event.to_entry(date, department))
             })
+    }
+
+    #[must_use]
+    pub fn resolve_output(&self, month: &toml_input::Month) -> String {
+        let format = self
+            .config
+            .as_ref()
+            .and_then(|c| c.output_format.as_ref())
+            .map_or_else(
+                || {
+                    format!(
+                        "{year:04}-{month:02}",
+                        year = month.general().year(),
+                        month = month.general().month()
+                    )
+                },
+                |f| {
+                    f.replace("{year}", &month.general().year().to_string())
+                        .replace("{month}", &month.general().month().to_string())
+                },
+            );
+
+        format!("{}.pdf", format)
     }
 }

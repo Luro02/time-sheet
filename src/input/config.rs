@@ -20,7 +20,6 @@ pub struct Config {
 
 pub struct ConfigBuilder {
     contract: Contract,
-    workspace: Option<PathBuf>,
     global: toml_input::Global,
     month: toml_input::Month,
     output: Option<PathBuf>,
@@ -36,7 +35,6 @@ impl ConfigBuilder {
             .clone();
 
         Ok(Self {
-            workspace: None,
             output: None,
             preserve_dir: None,
             global,
@@ -55,26 +53,21 @@ impl ConfigBuilder {
         self
     }
 
-    pub fn workspace(&mut self, workspace: impl Into<PathBuf>) -> &mut Self {
-        self.workspace = Some(workspace.into());
-        self
-    }
-
     #[must_use]
     pub fn build(self) -> Config {
-        let default_file_name = PathBuf::from(format!(
-            "pdfs/{:04}-{:02}.pdf",
-            self.month.general().year(),
-            self.month.general().month()
-        ));
+        let default_file_name = PathBuf::from(self.global.resolve_output(&self.month));
 
-        let output = self.output.unwrap_or_else(|| {
-            if let Some(workspace) = &self.workspace {
-                workspace.join(default_file_name)
+        let output = {
+            if let Some(output) = self.output {
+                if output.is_dir() {
+                    output.join(default_file_name)
+                } else {
+                    output
+                }
             } else {
                 default_file_name
             }
-        });
+        };
 
         let mut month = Month::new(
             self.month.general().month(),
