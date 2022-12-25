@@ -84,6 +84,13 @@ impl WorkingDuration {
     pub const fn minutes(&self) -> u8 {
         self.minutes
     }
+
+    #[must_use]
+    pub const fn saturating_sub(self, other: Self) -> Self {
+        let mins = self.as_mins().saturating_sub(other.as_mins());
+
+        Self::from_mins(mins)
+    }
 }
 
 impl From<WorkingDuration> for Duration {

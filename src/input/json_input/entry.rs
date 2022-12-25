@@ -5,7 +5,6 @@ use thiserror::Error;
 
 use crate::input::toml_input;
 use crate::time::{TimeSpan, TimeStamp, WorkingDuration};
-use crate::working_duration;
 
 #[must_use]
 const fn is_false(value: &bool) -> bool {
@@ -160,28 +159,7 @@ impl Entry {
     ///     working_duration!(00:30),
     /// );
     /// ```
-    ///
-    /// If the entry is a vacation, the duration will always be zero:
-    ///
-    /// ```
-    /// # use time_sheet::input::json_input::Entry;
-    /// # use time_sheet::{time_stamp, working_duration};
-    /// #
-    /// assert_eq!(
-    ///     Entry::new_vacation(
-    ///         "christmas vacation",
-    ///         24,
-    ///         time_stamp!(00:00),
-    ///         time_stamp!(23:59),
-    ///     ).work_duration(),
-    ///     working_duration!(00:00),
-    /// );
-    /// ```
     pub fn work_duration(&self) -> WorkingDuration {
-        if self.is_vacation() {
-            return working_duration!(00:00);
-        }
-
         self.time_span().duration() - self.break_duration()
     }
 
@@ -217,7 +195,7 @@ impl Entry {
 
 #[cfg(test)]
 mod tests {
-    use crate::time_stamp;
+    use crate::{time_stamp, working_duration};
 
     use super::*;
 

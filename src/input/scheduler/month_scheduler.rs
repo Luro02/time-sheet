@@ -1,7 +1,9 @@
+use log::debug;
+
 use crate::input::scheduler::{Scheduler, TimeSpanScheduler};
 use crate::input::toml_input::Transfer;
 use crate::time::{Date, DurationExt, Month, WorkingDuration, Year};
-use crate::utils;
+use crate::utils::{self, ArrayExt};
 use crate::working_duration;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -11,68 +13,78 @@ pub struct MonthScheduler {
 }
 
 impl MonthScheduler {
-    #[must_use]
-    pub fn new(year: Year, month: Month, maximum_time: WorkingDuration) -> Self {
-        let mut current_week_start = Date::first_day(year, month);
+    fn make_scheduler(
+        year: Year,
+        month: Month,
+        available_time: impl Fn(usize) -> WorkingDuration,
+    ) -> [TimeSpanScheduler; 6] {
+        <[TimeSpanScheduler; 6]>::init_with(|mut week_number| {
+            week_number += 1;
+            year.days_in_week(month, week_number).map_or_else(
+                || TimeSpanScheduler::empty(),
+                |days| {
+                    TimeSpanScheduler::new(*days.start(), *days.end(), available_time(week_number))
+                },
+            )
+        })
+    }
 
-        let mut iter = year.iter_weeks_in(month);
-        let workday_distribution = [(); 6].map(|_| {
-            if let Some((_, week_dates)) = iter.next() {
-                week_dates
-                    .into_iter()
-                    .filter(|date| date.is_workday())
-                    .count()
+    pub fn new(year: Year, month: Month, maximum_time: WorkingDuration) -> Self {
+        Self::new_with_available_time(year, month, maximum_time, |date| {
+            if date.is_workday() {
+                working_duration!(00:01)
             } else {
-                0
+                working_duration!(00:00)
+            }
+        })
+    }
+
+    #[must_use]
+    pub fn new_with_available_time(
+        year: Year,
+        month: Month,
+        maximum_time: WorkingDuration,
+        // Returns how much time is available on the given date
+        // This can be used to indicate through absences or holidays
+        // that less time is available on a given date.
+        mut available_time: impl FnMut(Date) -> WorkingDuration,
+    ) -> Self {
+        debug!(
+            "MonthScheduler: maximum working time per month: {}",
+            maximum_time
+        );
+
+        let mut iter = year.days_in(month);
+
+        let workday_distribution = [(); 31].map(|_| {
+            if let Some(next_date) = iter.next() {
+                available_time(next_date)
+            } else {
+                working_duration!(00:00)
             }
         });
 
-        // on how many days one can work in the month
-        let workable_days = workday_distribution.iter().sum::<usize>();
-
-        let (time_per_day, remainder) =
-            utils::divide_equally(maximum_time.to_duration().as_mins() as usize, workable_days);
+        let (distribution, remainder) = utils::divide_proportionally(
+            maximum_time.to_duration().as_mins() as usize,
+            workday_distribution.map(|w| w.to_duration().as_mins() as usize),
+        );
 
         let week_with_remainder = (year.number_of_weeks_in_month(month) + 1) / 2;
 
-        let mut is_done = false;
-        let weeks = [(); 6].map(|_| {
-            if let Some(next_week_start) = current_week_start.next_week_start().or_else(|| {
-                if current_week_start <= Date::last_day(year, month) && !is_done {
-                    is_done = true;
-                    Some(Date::last_day(year, month))
-                } else {
-                    None
-                }
-            }) {
-                let current_week_number = current_week_start.week_number() - 1;
-                let mut week_working_time =
-                    time_per_day * workday_distribution[current_week_number];
+        Self {
+            weeks: Self::make_scheduler(year, month, |week_number| {
+                let mut result = working_duration!(00:00);
 
-                if current_week_number == week_with_remainder - 1 {
-                    week_working_time += remainder;
+                for day in year.days_in_week(month, week_number).into_iter().flatten() {
+                    result += WorkingDuration::from_mins(distribution[day.day() - 1] as u16);
                 }
 
-                let result = TimeSpanScheduler::new(
-                    current_week_start,
-                    current_week_start.week_end(),
-                    WorkingDuration::from_mins(week_working_time as u16),
-                );
-
-                current_week_start = next_week_start;
+                if week_number == week_with_remainder {
+                    result += WorkingDuration::from_mins(remainder as u16);
+                }
 
                 result
-            } else {
-                TimeSpanScheduler::new(
-                    Date::last_day(year, month),
-                    Date::last_day(year, month),
-                    working_duration!(00:00),
-                )
-            }
-        });
-
-        Self {
-            weeks,
+            }),
             current_week: 0,
         }
     }
@@ -81,12 +93,6 @@ impl MonthScheduler {
         let mut result = self.weeks.clone();
 
         if to > from {
-            /*
-            for (last_week, new_week) in (from..to).into_iter().map(|w| (w, w + 1)) {
-                let transfer = result[last_week].take_transfer();
-
-                result[new_week].add_transfer(transfer);
-            } */
             let mut target = result[to].clone();
             result[from..to].iter_mut().fold(&mut target, |acc, week| {
                 acc.add_transfer(week.take_transfer());
@@ -306,6 +312,19 @@ mod tests {
         let time_per_day = working_duration!(01:38);
         let remainder = working_duration!(00:10);
 
+        // 4 * 98 = 392
+        // 6 * 98 = 588
+        // 3 * 98 = 294
+        // = 2450
+
+        // week 1 = 393
+        // week 2 = 590
+        // week 3 = 590
+        // week 4 = 590
+        // week 5 = 295
+        // week 6 =   0
+        // = 2458
+
         assert_eq!(
             MonthScheduler::new(Year::new(2022), Month::November, working_duration!(41:00)),
             MonthScheduler {
@@ -320,11 +339,7 @@ mod tests {
                     ),
                     TimeSpanScheduler::new(date!(2022:11:21), date!(2022:11:27), time_per_day * 6),
                     TimeSpanScheduler::new(date!(2022:11:28), date!(2022:11:30), time_per_day * 3),
-                    TimeSpanScheduler::new(
-                        date!(2022:11:30),
-                        date!(2022:11:30),
-                        working_duration!(00:00)
-                    ),
+                    TimeSpanScheduler::empty(),
                 ]
             }
         );
@@ -346,11 +361,7 @@ mod tests {
                     ),
                     TimeSpanScheduler::new(date!(2022:07:18), date!(2022:07:24), time_per_day * 6),
                     TimeSpanScheduler::new(date!(2022:07:25), date!(2022:07:31), time_per_day * 6),
-                    TimeSpanScheduler::new(
-                        date!(2022:07:31),
-                        date!(2022:07:31),
-                        working_duration!(00:00)
-                    ),
+                    TimeSpanScheduler::empty(),
                 ]
             }
         );

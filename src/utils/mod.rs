@@ -9,6 +9,8 @@ use rust_embed::RustEmbed;
 use serde::de::DeserializeOwned;
 use serde::ser;
 
+use crate::iter_const;
+
 mod iterator;
 mod macros;
 mod map_entry;
@@ -112,13 +114,74 @@ impl PathExt for Path {
     }
 }
 
-/// Divides the `number` into `n` equal parts.
-///
-/// The first returned value is how much each part is allocated and the second is
-/// the remainder that can not be distributed equally.
+pub trait ArrayExt<T, const N: usize> {
+    #[must_use]
+    fn init_with(f: impl FnMut(usize) -> T) -> [T; N];
+
+    #[must_use]
+    fn init(value: T) -> [T; N]
+    where
+        T: Clone,
+    {
+        Self::init_with(|_| value.clone())
+    }
+}
+
+impl<T, const N: usize> ArrayExt<T, N> for [T; N] {
+    fn init_with(mut f: impl FnMut(usize) -> T) -> [T; N] {
+        let mut i = 0;
+        [(); N].map(|_| {
+            let value = f(i);
+            i += 1;
+            value
+        })
+    }
+}
+
 #[must_use]
-pub const fn divide_equally(number: usize, n: usize) -> (usize, usize) {
-    (number / n, number % n)
+const fn sum_array<const N: usize>(array: [usize; N]) -> usize {
+    let mut sum = 0;
+    let mut i = 0;
+    while i < N {
+        sum += array[i];
+        i += 1;
+    }
+    sum
+}
+
+/// Divides the `numerator` into `N` parts, sized proportionally to the
+/// `proportion` values.
+///
+/// # Examples
+///
+/// ```ignore
+/// # use time_sheet::utils::divide_proportionally;
+/// #
+/// // Suppose you have 10 hours and proportion is [1, 2, 3, 4]
+/// // sum([1, 2, 3, 4]) = 10
+///
+/// // Then [1/10, 2/10, 3/10, 4/10] is how much each part gets of the 10 hours
+/// // -> [1/10 * 10, 2/10 * 10, 3/10 * 10, 4/10 * 10] = [1, 2, 3, 4]
+/// let (result, remainder) = divide_proportionally(10, [1, 2, 3, 4]);
+///
+/// assert_eq!(remainder, 0);
+/// assert_eq!(result, [1, 2, 3, 4]);
+/// ```
+pub const fn divide_proportionally<const N: usize>(
+    numerator: usize,
+    proportion: [usize; N],
+) -> ([usize; N], usize) {
+    let total = sum_array(proportion);
+
+    let mut result = [0; N];
+    let mut remainder = numerator;
+
+    iter_const!(for i in 0,..N => {
+        result[i] = (numerator * proportion[i]) / total;
+        remainder -= result[i];
+    });
+
+    (result, remainder)
 }
 
 pub trait StrExt {
@@ -139,11 +202,12 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     #[test]
-    fn test_divide_equally() {
-        assert_eq!(divide_equally(40, 4), (10, 0));
-        assert_eq!(divide_equally(41, 4), (10, 1));
-        assert_eq!(divide_equally(42, 4), (10, 2));
-        assert_eq!(divide_equally(43, 4), (10, 3));
-        assert_eq!(divide_equally(44, 4), (11, 0));
+    fn test_divide_proportionally() {
+        assert_eq!(divide_proportionally(10, [1, 2, 3, 4]), ([1, 2, 3, 4], 0));
+        assert_eq!(divide_proportionally(11, [1, 2, 3, 4]), ([1, 2, 3, 4], 1));
+        assert_eq!(
+            divide_proportionally(2460, [1920, 2880, 2880, 2880, 1440, 0,]),
+            ([393, 590, 590, 590, 295, 0], 2)
+        );
     }
 }

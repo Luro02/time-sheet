@@ -60,13 +60,10 @@ macro_rules! iter_const {
     ( for $t:ident in $start:expr ,.. $end:expr => $bl:block ) => {{
         let mut $t = $start;
         if $start < $end {
-            loop {
+            while $t < $end {
                 $bl;
 
                 $t += 1;
-                if $t >= $end {
-                    break;
-                }
             }
         }
     }};

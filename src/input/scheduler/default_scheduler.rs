@@ -5,6 +5,7 @@ use crate::input::scheduler::{
 use crate::input::Month;
 use crate::input::Transfer;
 use crate::time::{Date, WorkingDuration};
+use crate::working_duration;
 
 #[derive(Debug, Clone)]
 pub struct DefaultScheduler<F> {
@@ -27,10 +28,19 @@ impl<'a> DefaultScheduler<Box<dyn Fn(Date) -> WorkingDuration + 'a>> {
                 AbsenceScheduler::new(Box::new(|date| month.absence_time_on_day(date)), options),
                 DailyLimiter::new(options),
             ),
-            month_scheduler: MonthScheduler::new(
+            month_scheduler: MonthScheduler::new_with_available_time(
                 month.year(),
                 month.month(),
                 month.expected_working_duration(),
+                |date| {
+                    if date.is_workday() {
+                        options
+                            .daily_limit
+                            .saturating_sub(month.absence_time_on_day(date))
+                    } else {
+                        working_duration!(00:00)
+                    }
+                },
             ),
         }
     }

@@ -1,3 +1,4 @@
+use log::debug;
 use serde::ser;
 use serde::Serialize;
 
@@ -175,7 +176,7 @@ impl Month {
         start: Option<TimeStamp>,
     ) -> impl Iterator<Item = Date> + '_ {
         self.year()
-            .iter_days_in(self.month())
+            .days_in(self.month())
             .filter(move |date| !self.exceeds_working_duration_on_with(*date, duration))
             .filter(move |date| {
                 // remove all dates where the start + duration conflict with
@@ -237,6 +238,7 @@ impl Month {
             },
         );
 
+        debug!("transfer: {:?}", distribution.transfer_time());
         // TODO: what to do with the transfer_tasks and transfer?
 
         for (id, time) in distribution.schedule() {

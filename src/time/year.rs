@@ -172,15 +172,46 @@ impl Year {
         Self(self.0 - 1)
     }
 
-    pub fn iter_days_in(&self, month: Month) -> RangeInclusive<Date> {
+    pub fn days_in(&self, month: Month) -> RangeInclusive<Date> {
         Date::first_day(*self, month)..=Date::last_day(*self, month)
+    }
+
+    pub const fn days_in_week(
+        &self,
+        month: Month,
+        week_number: usize,
+    ) -> Option<RangeInclusive<Date>> {
+        let mut start = None;
+        let end;
+
+        let mut current_date = Date::first_day(*self, month);
+        loop {
+            if current_date.week_number() == week_number && start.is_none() {
+                start = Some(current_date);
+            } else if start.is_some() && current_date.week_number() != week_number {
+                end = Some(current_date.sub_days(1));
+                break;
+            }
+
+            current_date = current_date.add_days(1);
+            if !current_date.month().is_eq(&month) {
+                end = Some(current_date.sub_days(1));
+                break;
+            }
+        }
+
+        if let (Some(start), Some(end)) = (start, end) {
+            Some(start..=end)
+        } else {
+            None
+        }
     }
 
     pub fn iter_weeks_in(
         &self,
         month: Month,
     ) -> impl Iterator<Item = (usize, RangeInclusive<Date>)> + Clone {
-        self.iter_days_in(month)
+        self.days_in(month)
             .into_iter()
             .filter_map_with(0, |date, mut current_week| {
                 let mut result = None;
@@ -290,6 +321,17 @@ mod tests {
     use super::*;
 
     use pretty_assertions::assert_eq;
+
+    #[test]
+    fn test_days_in_week() {
+        for year in Year::new(2022)..=Year::new(2023) {
+            for month in Month::months() {
+                for (week_number, expected_days) in year.iter_weeks_in(month) {
+                    assert_eq!(year.days_in_week(month, week_number), Some(expected_days));
+                }
+            }
+        }
+    }
 
     #[test]
     fn test_is_leap_year() {

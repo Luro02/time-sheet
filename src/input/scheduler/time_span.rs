@@ -1,12 +1,13 @@
+use core::ops::RangeInclusive;
+
 use crate::input::scheduler::Scheduler;
 use crate::input::toml_input::Transfer;
 use crate::time::{Date, WorkingDuration};
-use crate::working_duration;
+use crate::{date, working_duration};
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct TimeSpanScheduler {
-    start_date: Date,
-    end_date: Date,
+    dates: RangeInclusive<Date>,
     available_duration: WorkingDuration,
     transfer_time: WorkingDuration,
 }
@@ -14,9 +15,17 @@ pub struct TimeSpanScheduler {
 impl TimeSpanScheduler {
     pub fn new(start_date: Date, end_date: Date, available_duration: WorkingDuration) -> Self {
         Self {
-            start_date,
-            end_date,
+            dates: start_date..=end_date,
             available_duration,
+            transfer_time: working_duration!(00:00),
+        }
+    }
+
+    #[must_use]
+    pub const fn empty() -> Self {
+        Self {
+            dates: date!(2022:12:12)..=date!(2022:12:11),
+            available_duration: working_duration!(00:00),
             transfer_time: working_duration!(00:00),
         }
     }
@@ -76,7 +85,7 @@ impl TimeSpanScheduler {
 impl Scheduler for TimeSpanScheduler {
     fn has_time_for(&self, date: Date, wanted_duration: WorkingDuration) -> WorkingDuration {
         // ignore dates outside of the time span
-        if date < self.start_date || date > self.end_date {
+        if !self.dates.contains(&date) {
             wanted_duration
         } else if wanted_duration > self.available_duration {
             self.available_duration
@@ -86,7 +95,7 @@ impl Scheduler for TimeSpanScheduler {
     }
 
     fn schedule(&mut self, date: Date, worked: WorkingDuration) {
-        if date < self.start_date || date > self.end_date {
+        if !self.dates.contains(&date) {
             return;
         }
 
@@ -100,7 +109,21 @@ mod tests {
 
     use pretty_assertions::assert_eq;
 
-    use crate::date;
+    use crate::time::{Month, Year};
+
+    #[test]
+    fn test_empty_scheduler() {
+        let scheduler = TimeSpanScheduler::empty();
+
+        for day in Year::new(2022).days_in(Month::November) {
+            assert_eq!(
+                scheduler.has_time_for(day, working_duration!(01:01)),
+                working_duration!(01:01),
+                "should ignore date {}",
+                day
+            );
+        }
+    }
 
     #[test]
     fn test_add_transfer() {
