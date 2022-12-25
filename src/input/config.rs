@@ -4,12 +4,14 @@ use std::path::{Path, PathBuf};
 use anyhow::Context;
 
 use crate::input::json_input::{Entry, GlobalFile};
-use crate::input::toml_input::{self, Contract};
+use crate::input::toml_input::{self, Contract, Mail};
 use crate::input::{Month, Signature};
 use crate::latex_string::LatexString;
 use crate::utils;
 
+#[derive(Debug, Clone)]
 pub struct Config {
+    mail: Option<Mail>,
     global_file: GlobalFile,
     signature: Option<Signature>,
     output: PathBuf,
@@ -98,6 +100,7 @@ impl ConfigBuilder {
 
         Config {
             month,
+            mail: self.global.mail().cloned(),
             global_file: GlobalFile::from((
                 self.global.about().clone(),
                 self.contract.department().to_string(),
@@ -169,6 +172,10 @@ impl Config {
 
     pub fn latex_mk_path(&self) -> Option<&Path> {
         self.latex_mk_path.as_deref()
+    }
+
+    pub fn mail(&self) -> Option<&Mail> {
+        self.mail.as_ref()
     }
 
     pub fn write_global_json(&self, path: impl AsRef<Path>) -> anyhow::Result<()> {

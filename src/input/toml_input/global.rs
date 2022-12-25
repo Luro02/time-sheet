@@ -2,7 +2,7 @@ use std::path::{Path, PathBuf};
 
 use serde::Deserialize;
 
-use crate::input::toml_input::{self, About, Contract, Entry, RepeatingEvent};
+use crate::input::toml_input::{self, About, Contract, Entry, Mail, RepeatingEvent};
 use crate::time::{Date, Month, Year};
 use crate::utils;
 
@@ -18,6 +18,7 @@ pub struct Config {
 pub struct Global {
     about: About,
     config: Option<Config>,
+    mail: Option<Mail>,
     #[serde(deserialize_with = "utils::deserialize_map_entry")]
     contract: Vec<Contract>,
     #[serde(default, deserialize_with = "utils::deserialize_map_entry")]
@@ -82,5 +83,10 @@ impl Global {
             );
 
         format!("{}.pdf", format)
+    }
+
+    #[must_use]
+    pub fn mail(&self) -> Option<&Mail> {
+        self.mail.as_ref()
     }
 }

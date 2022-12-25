@@ -1,0 +1,3 @@
+[submodule "seahorse"]
+    path = seahorse
+    url = https://github.com/Luro02/seahorse

@@ -2,8 +2,14 @@
 name = "time-sheet"
 version = "0.1.0"
 edition = "2021"
+authors = ["Luro02"]
+description = "A time sheet generator for the german university KIT"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[workspace]
+members = ["seahorse"]
+
+[features]
+default = ["lettre"]
 
 [dependencies]
 # parsing stuff
@@ -14,7 +20,6 @@ toml = "0.5"
 
 # utility
 anyhow = "1.0"
-regex = { version = "1.5", features = ["pattern"] }
 thiserror = "1.0"
 derive_more = "0.99"
 tempfile = "3"
@@ -22,6 +27,7 @@ rust-embed = "6.2"
 fs_extra = "1.2"
 v_latexescape = "0.13"
 static_assertions = "1.1"
+dunce = "1.0"
 
 # can be removed once const-fns panic can have arguments
 const_panic = "0.2"
@@ -34,7 +40,14 @@ log = "0.4"
 pretty_env_logger = "0.4"
 
 # cli
-seahorse = "1.1"
+# seahorse = "2.1"
+seahorse = { path = "seahorse" }
+
+[dependencies.lettre]
+version = "0.10"
+default-features = false
+features = ["smtp-transport", "pool", "hostname", "builder", "rustls-tls"]
+optional = true
 
 [dev-dependencies]
 pretty_assertions = "1.0"
