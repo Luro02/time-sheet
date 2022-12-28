@@ -83,21 +83,9 @@ fn test_proportional_dynamic_too_large() {
                 ),
                 Entry::new("task b", 16, time_stamp!(10:00), time_stamp!(10:24), None),
                 Entry::new("task c", 17, time_stamp!(10:00), time_stamp!(12:48), None),
-                Entry::new(
-                    "task c",
-                    22,
-                    time_stamp!(10:00),
-                    time_stamp!(15:42),
-                    Some(working_duration!(00:30))
-                ),
+                Entry::new("task c", 22, time_stamp!(10:00), time_stamp!(15:12), None),
                 Entry::new("task d", 23, time_stamp!(10:00), time_stamp!(13:36), None),
-                Entry::new(
-                    "task d",
-                    29,
-                    time_stamp!(10:00),
-                    time_stamp!(14:54),
-                    Some(working_duration!(00:30))
-                ),
+                Entry::new("task d", 29, time_stamp!(10:00), time_stamp!(14:24), None),
             ]
         )
     );

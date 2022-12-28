@@ -47,7 +47,7 @@ fn test_repeating_and_absence() {
             Month::November,
             Transfer::default(),
             vec![
-                Entry::new("filler", 2, time_stamp!(10:00), time_stamp!(12:32), None,),
+                Entry::new("filler", 2, time_stamp!(10:00), time_stamp!(12:32), None),
                 Entry::new(
                     "regular work",
                     4,
@@ -55,13 +55,7 @@ fn test_repeating_and_absence() {
                     time_stamp!(12:00),
                     None,
                 ),
-                Entry::new(
-                    "filler",
-                    7,
-                    time_stamp!(10:00),
-                    time_stamp!(15:12),
-                    Some(working_duration!(00:30)),
-                ),
+                Entry::new("filler", 7, time_stamp!(10:00), time_stamp!(14:42), None),
                 Entry::new(
                     "regular work",
                     11,

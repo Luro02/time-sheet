@@ -52,6 +52,7 @@ impl<K, V> From<Vec<(K, V)>> for IndexMap<K, V> {
 pub fn get_proportions(json_month_file: &MonthFile) -> IndexMap<&str, WorkingDuration> {
     let mut map: IndexMap<_, WorkingDuration> = IndexMap::new();
     for entry in json_month_file.entries() {
+        dbg!(entry);
         let value = map.get_mut_or_insert(entry.action(), Default::default());
         *value += entry.work_duration();
     }

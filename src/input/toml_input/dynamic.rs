@@ -3,11 +3,12 @@ use std::fmt;
 use log::info;
 use serde::Deserialize;
 
+use crate::input::json_input::Entry;
 use crate::input::scheduler::{DefaultScheduler, SchedulerOptions, Strategy};
 use crate::input::scheduler::{ScheduledTime, WorkSchedule};
 use crate::input::strategy::{self, FirstComeFirstServe, Proportional};
 use crate::input::{Month, Task, Transfer};
-use crate::time::WorkingDuration;
+use crate::time::{TimeStamp, WorkingDuration};
 use crate::utils;
 use crate::utils::MapEntry;
 
@@ -24,6 +25,10 @@ pub struct DynamicEntry {
     action: String,
     #[serde(flatten)]
     input: DynamicEntryInput,
+    #[serde(default)]
+    pause: Option<WorkingDuration>,
+    #[serde(default)]
+    start: Option<TimeStamp>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -58,8 +63,20 @@ impl<Id> ScheduledDistribution<Id> {
 
 impl DynamicEntry {
     #[must_use]
-    pub fn action(&self) -> &str {
+    fn action(&self) -> &str {
         &self.action
+    }
+
+    #[must_use]
+    pub fn to_entry(&self, start: TimeStamp, time: ScheduledTime) -> Entry {
+        let start = self.start.unwrap_or(start);
+        Entry::new(
+            self.action(),
+            time.date().day(),
+            start,
+            start + time.duration() + self.pause.unwrap_or_default(),
+            self.pause,
+        )
     }
 
     #[must_use]
@@ -95,6 +112,8 @@ impl DynamicEntry {
 
         let mut entries = entries.collect::<Vec<_>>();
 
+        println!("remaining time: {}", remaining_time);
+
         // resolve the duration of the flex entries
 
         let mut flex_entries = entries
@@ -106,6 +125,7 @@ impl DynamicEntry {
 
         for (_, task) in entries.iter() {
             if task.flex().is_none() {
+                println!("subtracting {}", task.duration());
                 remaining_time_for_flex = remaining_time_for_flex.saturating_sub(task.duration());
             }
         }
@@ -192,6 +212,8 @@ mod tests {
                 entry: vec![DynamicEntry {
                     action: "first example".to_string(),
                     input: DynamicEntryInput::Flex { flex: 1 },
+                    pause: None,
+                    start: None,
                 }]
             })
         );
@@ -210,6 +232,8 @@ mod tests {
                     input: DynamicEntryInput::Fixed {
                         duration: working_duration!(41:23)
                     },
+                    pause: None,
+                    start: None,
                 }]
             }),
         );

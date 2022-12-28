@@ -23,6 +23,7 @@ pub struct Month {
 
 impl Month {
     const MAXIMUM_WORK_DURATION: WorkingDuration = working_duration!(08:00);
+    const DEFAULT_START: TimeStamp = time_stamp!(10:00);
 
     #[must_use]
     pub fn new(
@@ -83,7 +84,7 @@ impl Month {
     fn schedule(&self, task: Task) -> Vec<(Date, TimeSpan)> {
         let mut result = Vec::new();
 
-        let start = task.suggested_start().unwrap_or_else(|| time_stamp!(08:00));
+        let start = task.suggested_start().unwrap_or(Self::DEFAULT_START);
         let mut iter = self.days_with_time_for(task.duration(), Some(start));
 
         let first = iter.next().expect("No free spot found for task!");
@@ -253,26 +254,8 @@ impl Month {
 
         for (id, time) in distribution.schedule() {
             let dynamic_entry = mapping[id];
-            let mut pause = None;
-            let duration = time.duration();
-            let date = time.date();
 
-            // TODO: make it possible to configure this?
-            // TODO: automagically add pauses for too long fixed entries?
-            if duration > working_duration!(04:00) {
-                pause = Some(working_duration!(00:30));
-            }
-
-            let start = time_stamp!(10:00);
-            let end = start + duration + pause.unwrap_or_default();
-
-            entries.push(Entry::new(
-                dynamic_entry.action().to_string(),
-                date.day(),
-                start,
-                end,
-                pause,
-            ))
+            entries.push(dynamic_entry.to_entry(Self::DEFAULT_START, time));
         }
 
         // sort the entries in the json file, so that no problems occur with the java tool

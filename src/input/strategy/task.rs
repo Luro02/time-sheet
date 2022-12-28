@@ -34,6 +34,7 @@ impl Task {
         }
     }
 
+    #[must_use]
     pub fn flex(&self) -> Option<usize> {
         self.flex
     }

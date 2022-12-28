@@ -5,6 +5,7 @@ use thiserror::Error;
 
 use crate::input::toml_input;
 use crate::time::{TimeSpan, TimeStamp, WorkingDuration};
+use crate::working_duration;
 
 #[must_use]
 const fn is_false(value: &bool) -> bool {
@@ -31,14 +32,26 @@ impl Entry {
         end: TimeStamp,
         pause: Option<WorkingDuration>,
     ) -> Self {
-        Self {
+        let mut result = Self {
             action: action.to_string(),
             day,
             start,
             end,
             pause,
             vacation: false,
+        };
+
+        // automatically add pauses if they are missing:
+        if pause.is_none() {
+            let duration = result.work_duration();
+            if duration >= working_duration!(09:00) {
+                result = result.with_pause(working_duration!(00:45));
+            } else if duration >= working_duration!(06:00) {
+                result = result.with_pause(working_duration!(00:30));
+            }
         }
+
+        result
     }
 
     pub fn new_vacation(
@@ -56,17 +69,28 @@ impl Entry {
             vacation: true,
         }
     }
+
+    #[must_use]
+    fn with_pause(mut self, pause: WorkingDuration) -> Self {
+        let duration = self.work_duration();
+        self.pause = Some(pause);
+        self.end = self.start + (duration + pause);
+        self
+    }
 }
 
 impl From<&toml_input::Entry> for Entry {
     fn from(entry: &toml_input::Entry) -> Self {
-        Self {
-            action: entry.action().to_string(),
-            day: entry.day(),
-            start: entry.start(),
-            end: entry.end(),
-            pause: entry.pause(),
-            vacation: entry.is_vacation(),
+        if entry.is_vacation() {
+            Self::new_vacation(entry.action(), entry.day(), entry.start(), entry.end())
+        } else {
+            Self::new(
+                entry.action(),
+                entry.day(),
+                entry.start(),
+                entry.end(),
+                entry.pause(),
+            )
         }
     }
 }
@@ -160,7 +184,9 @@ impl Entry {
     /// );
     /// ```
     pub fn work_duration(&self) -> WorkingDuration {
-        self.time_span().duration() - self.break_duration()
+        self.time_span()
+            .duration()
+            .saturating_sub(self.break_duration())
     }
 
     pub fn break_duration(&self) -> WorkingDuration {
