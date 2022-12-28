@@ -1,12 +1,13 @@
-use std::iter;
-use std::ops::{Sub, SubAssign};
+use std::fmt;
 
+use log::info;
 use serde::Deserialize;
 
-use crate::input::scheduler::{DefaultScheduler, SchedulerOptions};
+use crate::input::scheduler::{DefaultScheduler, SchedulerOptions, Strategy};
 use crate::input::scheduler::{ScheduledTime, WorkSchedule};
-use crate::input::{Month, Transfer};
-use crate::time::{Date, TimeStamp, WorkingDuration};
+use crate::input::strategy::{self, FirstComeFirstServe, Proportional};
+use crate::input::{Month, Task, Transfer};
+use crate::time::WorkingDuration;
 use crate::utils::MapEntry;
 
 #[derive(Debug, Clone, PartialEq, Deserialize)]
@@ -54,90 +55,6 @@ impl<Id> ScheduledDistribution<Id> {
     }
 }
 
-#[derive(Debug, Copy, Clone, PartialEq)]
-pub struct Task {
-    duration: WorkingDuration,
-    suggested_date: Option<Date>,
-    can_be_split: bool,
-    start: Option<TimeStamp>,
-}
-
-impl Task {
-    #[must_use]
-    pub fn new(
-        duration: WorkingDuration,
-        suggested_date: Option<Date>,
-        can_be_split: bool,
-    ) -> Self {
-        Self {
-            duration,
-            suggested_date,
-            can_be_split,
-            start: None,
-        }
-    }
-
-    #[must_use]
-    pub fn new_with_start(
-        duration: WorkingDuration,
-        suggested_date: Option<Date>,
-        can_be_split: bool,
-        start: TimeStamp,
-    ) -> Self {
-        Self {
-            duration,
-            suggested_date,
-            can_be_split,
-            start: Some(start),
-        }
-    }
-
-    #[must_use]
-    pub fn from_duration(duration: WorkingDuration) -> Self {
-        Self::new(duration, None, true)
-    }
-
-    #[must_use]
-    pub fn with_duration(mut self, duration: WorkingDuration) -> Self {
-        self.duration = duration;
-        self
-    }
-
-    #[must_use]
-    pub fn duration(&self) -> WorkingDuration {
-        self.duration
-    }
-
-    #[must_use]
-    pub fn suggested_date(&self) -> Option<Date> {
-        self.suggested_date
-    }
-
-    #[must_use]
-    pub fn can_be_split(&self) -> bool {
-        self.can_be_split
-    }
-
-    #[must_use]
-    pub const fn suggested_start(&self) -> Option<TimeStamp> {
-        self.start
-    }
-}
-
-impl Sub<WorkingDuration> for Task {
-    type Output = Self;
-
-    fn sub(self, rhs: WorkingDuration) -> Self::Output {
-        Self::new(self.duration - rhs, self.suggested_date, self.can_be_split)
-    }
-}
-
-impl SubAssign<WorkingDuration> for Task {
-    fn sub_assign(&mut self, rhs: WorkingDuration) {
-        self.duration -= rhs;
-    }
-}
-
 impl DynamicEntry {
     #[must_use]
     pub fn action(&self) -> &str {
@@ -152,37 +69,47 @@ impl DynamicEntry {
         }
     }
 
-    pub fn distribute<Id: Copy>(
+    pub fn distribute<Id: Copy + fmt::Debug + 'static>(
         // an iterator of the durations how long each entry is and a unique id
-        mut entries: impl Iterator<Item = (Id, Task)>,
+        entries: impl Iterator<Item = (Id, Task)>,
         month: &Month,
         options: &SchedulerOptions,
     ) -> ScheduledDistribution<Id> {
         let mut result = Vec::new();
 
-        let mut transfer_task = None;
+        let remaining_time = {
+            let transfer = month.remaining_time();
+            if transfer.is_positive() {
+                info!(
+                    "fixed entries ({}) exceed the month's working time ({})",
+                    transfer.next(),
+                    month.expected_working_duration()
+                );
+
+                return ScheduledDistribution::new(transfer, result, entries.collect());
+            } else {
+                transfer.previous()
+            }
+        };
+
         let mut scheduler = DefaultScheduler::new(month, options);
+        let mut strategy: Box<dyn strategy::Strategy<Id>> = {
+            match options.strategy {
+                Strategy::FirstComeFirstServe => {
+                    Box::new(FirstComeFirstServe::new(entries.collect()))
+                }
+                Strategy::Proportional => {
+                    Box::new(Proportional::new(entries.collect(), remaining_time))
+                }
+            }
+        };
 
         for (_, week_dates) in month.year().iter_weeks_in(month.month()) {
             let schedule = WorkSchedule::new(*week_dates.start(), *week_dates.end());
-            let dynamic_tasks = iter::from_fn(|| {
-                if let Some((id, duration)) = transfer_task.take() {
-                    Some((id, duration))
-                } else {
-                    entries.next()
-                }
+
+            let scheduled_tasks = schedule.schedule(&mut strategy, &mut scheduler, |date| {
+                month.working_time_on_day(date)
             });
-
-            let (scheduled_tasks, new_transfer_task) =
-                schedule.schedule(dynamic_tasks, &mut scheduler, |date| {
-                    month.working_time_on_day(date)
-                });
-
-            assert!(transfer_task.is_none() || new_transfer_task.is_none());
-
-            if let Some(new_transfer_task) = new_transfer_task {
-                transfer_task = Some(new_transfer_task);
-            }
 
             result.extend(scheduled_tasks);
         }
@@ -190,7 +117,7 @@ impl DynamicEntry {
         ScheduledDistribution {
             transfer_time: scheduler.transfer_time(),
             schedule: result,
-            remaining: transfer_task.into_iter().chain(entries).collect(),
+            remaining: strategy.to_remaining(),
         }
     }
 }
@@ -266,6 +193,10 @@ mod tests {
             input.dynamic_entries().cloned().collect(),
             Some(working_duration),
             input.absences().map(|(k, v)| (k, v.clone())).collect(),
+            SchedulerOptions {
+                daily_limit: working_duration!(06:00),
+                ..Default::default()
+            },
         )
     }
 

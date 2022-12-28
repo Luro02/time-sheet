@@ -4,7 +4,8 @@ use serde::Serialize;
 
 use crate::input::json_input::{Entry, MonthFile};
 use crate::input::scheduler::SchedulerOptions;
-use crate::input::toml_input::{Absence, DynamicEntry, Holiday, Task, Transfer};
+use crate::input::toml_input::{Absence, DynamicEntry, Holiday, Transfer};
+use crate::input::Task;
 use crate::time::{self, Date, TimeSpan, TimeStamp, WorkingDuration, Year};
 use crate::{time_stamp, working_duration};
 
@@ -17,6 +18,7 @@ pub struct Month {
     transfer: Transfer,
     entries: Vec<Entry>,
     absence: Vec<(Date, Absence)>,
+    options: SchedulerOptions,
 }
 
 impl Month {
@@ -31,6 +33,7 @@ impl Month {
         dynamic_entries: Vec<DynamicEntry>,
         expected_working_duration: Option<WorkingDuration>,
         absence: Vec<(Date, Absence)>,
+        options: SchedulerOptions,
     ) -> Self {
         Self {
             month,
@@ -40,6 +43,7 @@ impl Month {
             dynamic_entries,
             expected_working_duration,
             absence,
+            options,
         }
     }
 
@@ -58,6 +62,20 @@ impl Month {
                 self.entries.push(entry);
             }
         }
+    }
+
+    /// Returns the amount of time that is remaining to be worked in this month.
+    ///
+    /// If the remaining time is positive, the working time exceeds the expected working
+    /// duration.
+    pub fn remaining_time(&self) -> Transfer {
+        let fixed_work_duration = self
+            .entries
+            .iter()
+            .map(|e| e.work_duration())
+            .sum::<WorkingDuration>();
+
+        Transfer::new(self.expected_working_duration(), fixed_work_duration).normalized()
     }
 
     /// Finds a free spot where the task can be placed.
@@ -229,14 +247,7 @@ impl Month {
             }
         }
 
-        let distribution = DynamicEntry::distribute(
-            durations.into_iter(),
-            self,
-            &SchedulerOptions {
-                daily_limit: working_duration!(06:00),
-                ..Default::default()
-            },
-        );
+        let distribution = DynamicEntry::distribute(durations.into_iter(), self, &self.options);
 
         debug!("transfer: {:?}", distribution.transfer_time());
         // TODO: what to do with the transfer_tasks and transfer?

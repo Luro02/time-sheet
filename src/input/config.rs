@@ -4,10 +4,12 @@ use std::path::{Path, PathBuf};
 use anyhow::Context;
 
 use crate::input::json_input::{Entry, GlobalFile};
+use crate::input::scheduler::SchedulerOptions;
 use crate::input::toml_input::{self, Contract, Mail};
 use crate::input::{Month, Signature};
 use crate::latex_string::LatexString;
 use crate::utils;
+use crate::working_duration;
 
 #[derive(Debug, Clone)]
 pub struct Config {
@@ -79,6 +81,11 @@ impl ConfigBuilder {
             self.month.dynamic_entries().cloned().collect(),
             Some(self.contract.expected_working_duration()),
             self.month.absences().collect::<Vec<_>>(),
+            SchedulerOptions {
+                daily_limit: working_duration!(06:00),
+                strategy: self.month.general().strategy(),
+                ..Default::default()
+            },
         );
 
         for entry in self

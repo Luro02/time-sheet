@@ -1,4 +1,4 @@
-use crate::input::toml_input::Task;
+use crate::input::strategy::Strategy;
 use crate::input::Scheduler;
 use crate::time::{Date, WorkingDuration};
 use crate::{min, working_duration};
@@ -48,13 +48,13 @@ impl WorkSchedule {
 
     pub fn schedule<S, P, Id, F>(
         &self,
-        mut dynamic_tasks: P,
+        mut strategy: P,
         mut scheduler: S,
         fixed_scheduler: F,
-    ) -> (Vec<(Id, ScheduledTime)>, Option<(Id, Task)>)
+    ) -> Vec<(Id, ScheduledTime)>
     where
         Id: Copy,
-        P: Iterator<Item = (Id, Task)>,
+        P: Strategy<Id>,
         S: Scheduler,
         F: Fn(Date) -> WorkingDuration,
     {
@@ -65,10 +65,11 @@ impl WorkSchedule {
             scheduler.schedule_in_advance(date, fixed_scheduler(date));
         }
 
-        let mut current_task: Option<(Id, Task)> = None;
         for date in self.start_date..=self.end_date {
-            let Some((id, task)) = current_task.as_ref().copied().or_else(|| {current_task = dynamic_tasks.next(); current_task}) else {
-                break; // nothing to schedule
+            let Some((_, task)) = strategy.peek_task(date) else {
+                continue; // nothing to schedule
+                // TODO: might be a good idea to ask the strategy if there
+                // are any tasks left at all and quit if there are none remaining
             };
 
             let mut possible_work_duration = scheduler.has_time_for(date, task.duration());
@@ -82,18 +83,20 @@ impl WorkSchedule {
             // if the task is longer than the possible work duration, we have to split it
             let worked_duration = min!(task_duration, possible_work_duration);
 
+            // consume the task only when it will definitely be scheduled
+            let (id, task) = strategy.next_task(date).unwrap();
+
             result.push((id, ScheduledTime::new(date, worked_duration)));
             scheduler.schedule(date, worked_duration);
 
             possible_work_duration -= worked_duration;
 
+            // only reschedule the task if it is not finished yet:
             if worked_duration < task_duration {
-                current_task = Some((id, task.with_duration(task_duration - worked_duration)));
-            } else {
-                current_task = None;
+                strategy.push_task(id, task.with_duration(task_duration - worked_duration));
             }
         }
 
-        (result, current_task)
+        result
     }
 }

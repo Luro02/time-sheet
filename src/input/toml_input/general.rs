@@ -1,5 +1,6 @@
 use serde::Deserialize;
 
+use crate::input::scheduler::Strategy;
 use crate::time::{Date, Month, Year};
 
 #[derive(Debug, Clone, Deserialize)]
@@ -8,6 +9,8 @@ pub struct General {
     year: Year,
     department: String,
     signature: Option<GeneralSignature>,
+    #[serde(default)]
+    strategy: Strategy,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -36,5 +39,9 @@ impl General {
 
     pub fn department(&self) -> &str {
         &self.department
+    }
+
+    pub const fn strategy(&self) -> Strategy {
+        self.strategy
     }
 }

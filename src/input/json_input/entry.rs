@@ -191,6 +191,10 @@ impl Entry {
     pub const fn is_vacation(&self) -> bool {
         self.vacation
     }
+
+    pub fn action(&self) -> &str {
+        &self.action
+    }
 }
 
 #[cfg(test)]

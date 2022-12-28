@@ -138,50 +138,27 @@ impl<T, const N: usize> ArrayExt<T, N> for [T; N] {
     }
 }
 
-#[must_use]
-const fn sum_array<const N: usize>(array: [usize; N]) -> usize {
-    let mut sum = 0;
-    let mut i = 0;
-    while i < N {
-        sum += array[i];
-        i += 1;
-    }
-    sum
-}
-
 /// Divides the `numerator` into `N` parts, sized proportionally to the
-/// `proportion` values.
-///
-/// # Examples
-///
-/// ```ignore
-/// # use time_sheet::utils::divide_proportionally;
-/// #
-/// // Suppose you have 10 hours and proportion is [1, 2, 3, 4]
-/// // sum([1, 2, 3, 4]) = 10
-///
-/// // Then [1/10, 2/10, 3/10, 4/10] is how much each part gets of the 10 hours
-/// // -> [1/10 * 10, 2/10 * 10, 3/10 * 10, 4/10 * 10] = [1, 2, 3, 4]
-/// let (result, remainder) = divide_proportionally(10, [1, 2, 3, 4]);
-///
-/// assert_eq!(remainder, 0);
-/// assert_eq!(result, [1, 2, 3, 4]);
-/// ```
-pub const fn divide_proportionally<const N: usize>(
-    numerator: usize,
-    proportion: [usize; N],
-) -> ([usize; N], usize) {
-    let total = sum_array(proportion);
+/// `proportion` values in place. Returns the remainder.
+pub const fn divide_proportionally(numerator: usize, proportion: &mut [usize]) -> usize {
+    let total = {
+        let mut total = 0;
 
-    let mut result = [0; N];
+        iter_const!(for i in 0,..proportion.len() => {
+            total += proportion[i];
+        });
+
+        total
+    };
+
     let mut remainder = numerator;
 
-    iter_const!(for i in 0,..N => {
-        result[i] = (numerator * proportion[i]) / total;
-        remainder -= result[i];
+    iter_const!(for i in 0,..proportion.len() => {
+        proportion[i] = (numerator * proportion[i]) / total;
+        remainder -= proportion[i];
     });
 
-    (result, remainder)
+    remainder
 }
 
 pub trait StrExt {
@@ -201,12 +178,26 @@ mod tests {
 
     use pretty_assertions::assert_eq;
 
+    fn divide_array_proportionally<const N: usize>(
+        numerator: usize,
+        mut proportion: [usize; N],
+    ) -> ([usize; N], usize) {
+        let remainder = divide_proportionally(numerator, &mut proportion);
+        (proportion, remainder)
+    }
+
     #[test]
     fn test_divide_proportionally() {
-        assert_eq!(divide_proportionally(10, [1, 2, 3, 4]), ([1, 2, 3, 4], 0));
-        assert_eq!(divide_proportionally(11, [1, 2, 3, 4]), ([1, 2, 3, 4], 1));
         assert_eq!(
-            divide_proportionally(2460, [1920, 2880, 2880, 2880, 1440, 0,]),
+            divide_array_proportionally(10, [1, 2, 3, 4]),
+            ([1, 2, 3, 4], 0)
+        );
+        assert_eq!(
+            divide_array_proportionally(11, [1, 2, 3, 4]),
+            ([1, 2, 3, 4], 1)
+        );
+        assert_eq!(
+            divide_array_proportionally(2460, [1920, 2880, 2880, 2880, 1440, 0,]),
             ([393, 590, 590, 590, 295, 0], 2)
         );
     }

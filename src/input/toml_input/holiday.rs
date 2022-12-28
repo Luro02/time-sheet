@@ -1,7 +1,7 @@
 use serde::Deserialize;
 
 use crate::input::json_input::Entry;
-use crate::input::toml_input::Task;
+use crate::input::Task;
 use crate::time::{Date, Month, TimeSpan, TimeStamp, WorkingDuration, Year};
 use crate::working_duration;
 

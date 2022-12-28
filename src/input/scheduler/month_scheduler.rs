@@ -64,9 +64,10 @@ impl MonthScheduler {
             }
         });
 
-        let (distribution, remainder) = utils::divide_proportionally(
+        let mut distribution = workday_distribution.map(|w| w.to_duration().as_mins() as usize);
+        let remainder = utils::divide_proportionally(
             maximum_time.to_duration().as_mins() as usize,
-            workday_distribution.map(|w| w.to_duration().as_mins() as usize),
+            &mut distribution,
         );
 
         let week_with_remainder = (year.number_of_weeks_in_month(month) + 1) / 2;

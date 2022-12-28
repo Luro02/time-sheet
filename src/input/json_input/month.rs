@@ -53,6 +53,10 @@ impl MonthFile {
         self.month
     }
 
+    pub fn entries(&self) -> &[Entry] {
+        &self.entries
+    }
+
     pub fn transfer(&self) -> Transfer {
         Transfer::new(self.pred_transfer, self.succ_transfer)
     }
