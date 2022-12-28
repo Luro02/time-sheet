@@ -63,7 +63,7 @@ impl<Id> ScheduledDistribution<Id> {
 
 impl DynamicEntry {
     #[must_use]
-    fn action(&self) -> &str {
+    pub fn action(&self) -> &str {
         &self.action
     }
 
@@ -112,8 +112,6 @@ impl DynamicEntry {
 
         let mut entries = entries.collect::<Vec<_>>();
 
-        println!("remaining time: {}", remaining_time);
-
         // resolve the duration of the flex entries
 
         let mut flex_entries = entries
@@ -125,7 +123,6 @@ impl DynamicEntry {
 
         for (_, task) in entries.iter() {
             if task.flex().is_none() {
-                println!("subtracting {}", task.duration());
                 remaining_time_for_flex = remaining_time_for_flex.saturating_sub(task.duration());
             }
         }

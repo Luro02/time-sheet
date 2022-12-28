@@ -263,6 +263,15 @@ impl Month {
 
         MonthFile::new(self.year, self.month, self.transfer(), entries)
     }
+
+    pub fn actions_that_overflow(&self) -> impl Iterator<Item = &str> + '_ {
+        let character_limit = 25;
+        self.entries
+            .iter()
+            .map(|e| e.action())
+            .chain(self.dynamic_entries.iter().map(|e| e.action()))
+            .filter(move |a| a.len() > character_limit)
+    }
 }
 
 impl Serialize for Month {
