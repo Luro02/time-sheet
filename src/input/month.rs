@@ -50,12 +50,12 @@ impl Month {
     pub fn add_entry_if_possible(&mut self, entry: Entry) {
         let span = entry.time_span();
         let entry_date = Date::new(self.year, self.month, entry.day()).unwrap();
-        let scheduled = self.schedule(Task::new_with_start(
-            span.duration(),
-            Some(entry_date),
-            false,
-            span.start(),
-        ));
+        // TODO: is span.duration() right? This would include pauses
+        let scheduled = self.schedule(
+            Task::new_duration(span.duration())
+                .with_start(span.start())
+                .with_suggested_date(entry_date),
+        );
 
         if let Some((date, span)) = scheduled.get(0) {
             if *date == entry_date && *span == entry.time_span() {
@@ -241,10 +241,9 @@ impl Month {
         let mut durations = Vec::with_capacity(mapping.capacity());
 
         for dynamic_entry in self.dynamic_entries() {
-            if let Some(duration) = dynamic_entry.duration() {
-                mapping.push(dynamic_entry);
-                durations.push((mapping.len() - 1, Task::from_duration(duration)));
-            }
+            let task = dynamic_entry.to_task();
+            mapping.push(dynamic_entry);
+            durations.push((mapping.len() - 1, task));
         }
 
         let distribution = DynamicEntry::distribute(durations.into_iter(), self, &self.options);

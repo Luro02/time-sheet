@@ -1,6 +1,7 @@
 use core::ops::{Sub, SubAssign};
 
 use crate::time::{Date, TimeStamp, WorkingDuration};
+use crate::working_duration;
 
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub struct Task {
@@ -8,41 +9,50 @@ pub struct Task {
     suggested_date: Option<Date>,
     can_be_split: bool,
     start: Option<TimeStamp>,
+    flex: Option<usize>,
 }
 
 impl Task {
     #[must_use]
-    pub fn new(
-        duration: WorkingDuration,
-        suggested_date: Option<Date>,
-        can_be_split: bool,
-    ) -> Self {
+    pub fn new_duration(duration: WorkingDuration) -> Self {
         Self {
             duration,
-            suggested_date,
-            can_be_split,
+            suggested_date: None,
+            can_be_split: true,
             start: None,
+            flex: None,
         }
     }
 
-    #[must_use]
-    pub fn new_with_start(
-        duration: WorkingDuration,
-        suggested_date: Option<Date>,
-        can_be_split: bool,
-        start: TimeStamp,
-    ) -> Self {
+    pub fn new_flex(flex: usize) -> Self {
         Self {
-            duration,
-            suggested_date,
-            can_be_split,
-            start: Some(start),
+            duration: working_duration!(00:00),
+            suggested_date: None,
+            can_be_split: true,
+            start: None,
+            flex: Some(flex),
         }
     }
 
+    pub fn flex(&self) -> Option<usize> {
+        self.flex
+    }
+
+    pub fn resolve_flex(&mut self, duration: WorkingDuration) {
+        self.duration = duration;
+        self.flex = None;
+    }
+
     #[must_use]
-    pub fn from_duration(duration: WorkingDuration) -> Self {
-        Self::new(duration, None, true)
+    pub fn with_start(mut self, start: TimeStamp) -> Self {
+        self.start = Some(start);
+        self
+    }
+
+    #[must_use]
+    pub fn with_suggested_date(mut self, date: Date) -> Self {
+        self.suggested_date = Some(date);
+        self
     }
 
     #[must_use]
@@ -75,13 +85,14 @@ impl Task {
 impl Sub<WorkingDuration> for Task {
     type Output = Self;
 
-    fn sub(self, rhs: WorkingDuration) -> Self::Output {
-        Self::new(self.duration - rhs, self.suggested_date, self.can_be_split)
+    fn sub(mut self, rhs: WorkingDuration) -> Self::Output {
+        self.duration -= rhs;
+        self
     }
 }
 
 impl SubAssign<WorkingDuration> for Task {
     fn sub_assign(&mut self, rhs: WorkingDuration) {
-        self.duration -= rhs;
+        *self = *self - rhs;
     }
 }

@@ -2,7 +2,7 @@
 
 use time_sheet::input::json_input::{Entry, MonthFile};
 use time_sheet::input::toml_input::{self, Global, Transfer};
-use time_sheet::time::{Month, WorkingDuration, Year};
+use time_sheet::time::{Month, Year};
 use time_sheet::{time_stamp, working_duration};
 
 use pretty_assertions::assert_eq;
@@ -10,17 +10,6 @@ use pretty_assertions::assert_eq;
 use crate::common::IndexMap;
 
 mod common;
-
-#[must_use]
-fn get_proportions(json_month_file: &MonthFile) -> IndexMap<&str, WorkingDuration> {
-    let mut map: IndexMap<_, WorkingDuration> = IndexMap::new();
-    for entry in json_month_file.entries() {
-        let value = map.get_mut_or_insert(entry.action(), Default::default());
-        *value += entry.work_duration();
-    }
-
-    map
-}
 
 #[test]
 fn test_proportional_dynamic_too_large() {
@@ -52,7 +41,7 @@ fn test_proportional_dynamic_too_large() {
     let json_month_file = common::make_month_file(global, month);
 
     assert_eq!(
-        get_proportions(&json_month_file),
+        common::get_proportions(&json_month_file),
         IndexMap::from(vec![
             ("task a", working_duration!(08:00)),
             ("task b", working_duration!(16:00)),

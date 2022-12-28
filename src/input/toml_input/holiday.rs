@@ -64,11 +64,13 @@ impl Holiday {
 
         let date = Date::new(year, month, self.day).expect("invalid day for month");
         schedule({
+            let mut task = Task::new_duration(duration).with_suggested_date(date);
+
             if let Some(start) = self.start {
-                Task::new_with_start(duration, Some(date), true, start)
-            } else {
-                Task::new(duration, Some(date), true)
+                task = task.with_start(start);
             }
+
+            task
         })
         .into_iter()
         .map(|(date, span)| Entry::new_vacation("Urlaub", date.day(), span.start(), span.end()))

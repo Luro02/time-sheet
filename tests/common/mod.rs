@@ -48,6 +48,18 @@ impl<K, V> From<Vec<(K, V)>> for IndexMap<K, V> {
 }
 
 #[must_use]
+#[allow(dead_code)]
+pub fn get_proportions(json_month_file: &MonthFile) -> IndexMap<&str, WorkingDuration> {
+    let mut map: IndexMap<_, WorkingDuration> = IndexMap::new();
+    for entry in json_month_file.entries() {
+        let value = map.get_mut_or_insert(entry.action(), Default::default());
+        *value += entry.work_duration();
+    }
+
+    map
+}
+
+#[must_use]
 pub fn make_month_file(global: toml_input::Global, month: toml_input::Month) -> MonthFile {
     let config = Config::try_from_toml(month, global)
         .expect("config should be valid")

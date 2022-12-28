@@ -8,6 +8,7 @@ use crate::input::scheduler::{ScheduledTime, WorkSchedule};
 use crate::input::strategy::{self, FirstComeFirstServe, Proportional};
 use crate::input::{Month, Task, Transfer};
 use crate::time::WorkingDuration;
+use crate::utils;
 use crate::utils::MapEntry;
 
 #[derive(Debug, Clone, PartialEq, Deserialize)]
@@ -62,10 +63,10 @@ impl DynamicEntry {
     }
 
     #[must_use]
-    pub fn duration(&self) -> Option<WorkingDuration> {
+    pub fn to_task(&self) -> Task {
         match self.input {
-            DynamicEntryInput::Fixed { duration } => Some(duration),
-            _ => None,
+            DynamicEntryInput::Fixed { duration } => Task::new_duration(duration),
+            DynamicEntryInput::Flex { flex } => Task::new_flex(flex),
         }
     }
 
@@ -92,15 +93,45 @@ impl DynamicEntry {
             }
         };
 
+        let mut entries = entries.collect::<Vec<_>>();
+
+        // resolve the duration of the flex entries
+
+        let mut flex_entries = entries
+            .iter()
+            .filter_map(|(_, task)| task.flex())
+            .collect::<Vec<_>>();
+
+        let mut remaining_time_for_flex = remaining_time;
+
+        for (_, task) in entries.iter() {
+            if task.flex().is_none() {
+                remaining_time_for_flex = remaining_time_for_flex.saturating_sub(task.duration());
+            }
+        }
+
+        let remainder = utils::divide_proportionally(
+            remaining_time_for_flex.as_mins() as usize,
+            &mut flex_entries,
+        );
+
+        // for now the first entry gets the remainder:
+        if let Some(flex) = flex_entries.first_mut() {
+            *flex += remainder;
+        }
+
+        // the order remains, so update all tasks:
+        for (_, task) in entries.iter_mut() {
+            if task.flex().is_some() {
+                task.resolve_flex(WorkingDuration::from_mins(flex_entries.remove(0) as u16));
+            }
+        }
+
         let mut scheduler = DefaultScheduler::new(month, options);
         let mut strategy: Box<dyn strategy::Strategy<Id>> = {
             match options.strategy {
-                Strategy::FirstComeFirstServe => {
-                    Box::new(FirstComeFirstServe::new(entries.collect()))
-                }
-                Strategy::Proportional => {
-                    Box::new(Proportional::new(entries.collect(), remaining_time))
-                }
+                Strategy::FirstComeFirstServe => Box::new(FirstComeFirstServe::new(entries)),
+                Strategy::Proportional => Box::new(Proportional::new(entries, remaining_time)),
             }
         };
 
@@ -227,12 +258,9 @@ mod tests {
             next_id += 1;
         }
 
-        let durations = month.dynamic_entries().map(|entry| {
-            (
-                ids[entry.action()],
-                Task::from_duration(entry.duration().unwrap()),
-            )
-        });
+        let durations = month
+            .dynamic_entries()
+            .map(|entry| (ids[entry.action()], entry.to_task()));
 
         // there are no holidays in july and it has 31 days,
         // of those 5 are sundays in 2022 -> 26 working days.
@@ -323,12 +351,9 @@ mod tests {
             next_id += 1;
         }
 
-        let durations = month.dynamic_entries().map(|entry| {
-            (
-                ids[entry.action()],
-                Task::from_duration(entry.duration().unwrap()),
-            )
-        });
+        let durations = month
+            .dynamic_entries()
+            .map(|entry| (ids[entry.action()], entry.to_task()));
 
         // there are no holidays in july and it has 31 days,
         // of those 5 are sundays in 2022 -> 26 working days.
@@ -381,7 +406,7 @@ mod tests {
                     // at this point the working limit has been reached
                     // -> the rest must be transferred to the next month
                 ],
-                vec![(1, Task::from_duration(working_duration!(05:21)))]
+                vec![(1, Task::new_duration(working_duration!(05:21)))]
             )
         );
     }
