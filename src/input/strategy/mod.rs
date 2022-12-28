@@ -3,13 +3,14 @@
 
 mod first_come_first_serve;
 mod proportional;
+mod task;
 
 pub use first_come_first_serve::*;
 pub use proportional::*;
+pub use task::*;
 
 use std::ops::{Deref, DerefMut};
 
-use crate::input::Task;
 use crate::time::Date;
 
 pub trait Strategy<Id> {
