@@ -4,7 +4,7 @@ use serde::Deserialize;
 
 use crate::input::toml_input::{self, About, Contract, DynamicEntry, Entry, Mail, RepeatingEvent};
 use crate::time::{Date, Month, Year};
-use crate::utils::{self, ArrayVec};
+use crate::utils;
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct Config {
@@ -66,28 +66,12 @@ impl Global {
         &'a self,
         year: Year,
         month: Month,
-        mut can_repeat_on: impl FnMut(Date) -> bool + 'a,
+        can_repeat_on: impl Copy + Fn(Date) -> bool + 'a,
         department: &'a str,
     ) -> impl Iterator<Item = DynamicEntry> + 'a {
-        // TODO: should be an associated function?
         self.repeating
             .iter()
-            .filter_map(move |event| event.to_dynamic_entry(department).map(|e| (event, e)))
-            .flat_map(move |(r, e)| {
-                let mut entries: ArrayVec<_, 31> = ArrayVec::new();
-
-                let range = Date::first_day(year, month)..=Date::last_day(year, month);
-                for date in range.clone() {
-                    if can_repeat_on(date) && r.repeats_on(date) {
-                        entries.push(
-                            e.clone()
-                                .with_skip_dates(range.clone().filter(|d| d != &date).collect()),
-                        );
-                    }
-                }
-
-                entries
-            })
+            .flat_map(move |event| event.to_dynamic_entries(year, month, department, can_repeat_on))
     }
 
     #[must_use]

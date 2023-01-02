@@ -34,7 +34,7 @@ fn test_transfer_previous_month() {
                 "start = \"08:00\"\n",
                 "end = \"10:00\"\n",
                 "repeats_on = [\"Tuesday\"]\n",
-                "repeats = \"weekly\"\n"
+                "repeats_every = \"week\"\n"
             )),
     )
     .expect("toml should be valid");
@@ -121,7 +121,7 @@ fn test_transfer_previous_and_next_month() {
                 "start = \"08:00\"\n",
                 "end = \"10:00\"\n",
                 "repeats_on = [\"Tuesday\"]\n",
-                "repeats = \"weekly\"\n"
+                "repeats_every = \"week\"\n"
             )),
     )
     .expect("toml should be valid");

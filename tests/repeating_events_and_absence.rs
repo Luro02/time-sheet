@@ -19,7 +19,7 @@ fn test_repeating_and_absence() {
                 "start = \"08:00\"\n",
                 "end = \"12:00\"\n",
                 "repeats_on = [\"Tuesday\", \"Friday\"]\n",
-                "repeats = \"weekly\"\n"
+                "repeats_every = \"week\"\n"
             )),
     )
     .expect("toml should be valid");

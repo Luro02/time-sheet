@@ -37,7 +37,7 @@ fn test_repeating_dynamic() {
                 "[repeating.\"regular work\"]\n",
                 "start = \"08:00\"\n",
                 "repeats_on = [\"Tuesday\"]\n",
-                "repeats = \"weekly\"\n",
+                "repeats_every = \"week\"\n",
                 "duration = \"03:00\"\n",
             )),
     )

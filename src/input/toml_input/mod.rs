@@ -9,7 +9,7 @@ mod global;
 mod holiday;
 mod mail;
 mod month;
-mod repeating_event;
+mod repeating;
 mod signature;
 mod transfer;
 
@@ -24,6 +24,6 @@ pub use global::*;
 pub use holiday::*;
 pub use mail::*;
 pub use month::*;
-pub use repeating_event::*;
+pub use repeating::*;
 pub use signature::*;
 pub use transfer::*;
