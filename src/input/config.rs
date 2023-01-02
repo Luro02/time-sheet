@@ -73,12 +73,26 @@ impl ConfigBuilder {
             }
         };
 
+        let dynamic_entries: Vec<_> = self
+            .month
+            .dynamic_entries()
+            .cloned()
+            // add the repeating entries from the global that
+            // apply to this month/contract
+            .chain(self.global.dynamic_repeating_in_month(
+                self.month.general().year(),
+                self.month.general().month(),
+                |date| date.is_workday(),
+                self.contract.department(),
+            ))
+            .collect();
+
         let mut month = Month::new(
             self.month.general().month(),
             self.month.general().year(),
             self.month.transfer().unwrap_or_default(),
             self.month.entries().map(Entry::from).collect(),
-            self.month.dynamic_entries().cloned().collect(),
+            dynamic_entries,
             Some(self.contract.expected_working_duration()),
             self.month.absences().collect::<Vec<_>>(),
             SchedulerOptions {

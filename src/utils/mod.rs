@@ -12,9 +12,11 @@ use serde::ser;
 use crate::iter_const;
 
 mod iterator;
+mod array_vec;
 mod macros;
 mod map_entry;
 
+pub use array_vec::*;
 pub use iterator::*;
 pub use map_entry::*;
 

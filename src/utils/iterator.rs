@@ -1,6 +1,8 @@
 use core::iter;
 use core::marker::PhantomData;
 
+use crate::utils::TryExtend;
+
 #[derive(Debug, Clone, PartialEq)]
 #[must_use]
 pub struct MapWith<I, F, B, R> {
@@ -52,6 +54,16 @@ pub trait IteratorExt: Iterator {
         Self: Sized,
     {
         <Self as IteratorExt>::map_with(self, init, f).flatten()
+    }
+
+    fn try_collect<B>(self) -> Result<B, B::Error>
+    where
+        B: TryExtend<Self::Item> + Default,
+        Self: Sized,
+    {
+        let mut result = B::default();
+        result.try_extend(self)?;
+        Ok(result)
     }
 }
 

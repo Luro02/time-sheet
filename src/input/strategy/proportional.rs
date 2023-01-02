@@ -48,10 +48,6 @@ impl<Id> Strategy<Id> for Proportional<Id>
 where
     Id: fmt::Debug + Clone,
 {
-    fn peek_task(&self, date: Date) -> Option<(&Id, &Task)> {
-        self.inner.peek_task(date)
-    }
-
     fn next_task(&mut self, date: Date) -> Option<(Id, Task)> {
         self.inner.next_task(date)
     }

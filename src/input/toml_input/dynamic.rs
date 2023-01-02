@@ -1,16 +1,18 @@
 use std::fmt;
 
-use log::info;
+use log::{debug, info};
 use serde::Deserialize;
 
 use crate::input::json_input::Entry;
 use crate::input::scheduler::{DefaultScheduler, SchedulerOptions, Strategy};
 use crate::input::scheduler::{ScheduledTime, WorkSchedule};
-use crate::input::strategy::{self, FirstComeFirstServe, Proportional};
+use crate::input::strategy::{
+    self, FirstComeFirstServe, PeekableStrategy, Proportional, Strategy as _,
+};
 use crate::input::{Month, Task, Transfer};
-use crate::time::{TimeStamp, WorkingDuration};
-use crate::utils;
+use crate::time::{Date, TimeStamp, WorkingDuration};
 use crate::utils::MapEntry;
+use crate::utils::{self, ArrayVec};
 
 #[derive(Debug, Clone, PartialEq, Deserialize)]
 #[serde(untagged)]
@@ -29,6 +31,8 @@ pub struct DynamicEntry {
     pause: Option<WorkingDuration>,
     #[serde(default)]
     start: Option<TimeStamp>,
+    #[serde(skip)]
+    skip_dates: ArrayVec<Date, 31>,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -80,10 +84,18 @@ impl DynamicEntry {
     }
 
     #[must_use]
+    pub fn with_skip_dates(mut self, dates: ArrayVec<Date, 31>) -> Self {
+        self.skip_dates = dates;
+        self
+    }
+
+    #[must_use]
     pub fn to_task(&self) -> Task {
         match self.input {
-            DynamicEntryInput::Fixed { duration } => Task::new_duration(duration),
-            DynamicEntryInput::Flex { flex } => Task::new_flex(flex),
+            DynamicEntryInput::Fixed { duration } => {
+                Task::new_duration(duration).with_filter(self.skip_dates)
+            }
+            DynamicEntryInput::Flex { flex } => Task::new_flex(flex).with_filter(self.skip_dates),
         }
     }
 
@@ -144,13 +156,20 @@ impl DynamicEntry {
             }
         }
 
+        debug!(
+            "remaining time for flex {} of {}",
+            remaining_time_for_flex, remaining_time
+        );
+
         let mut scheduler = DefaultScheduler::new(month, options);
-        let mut strategy: Box<dyn strategy::Strategy<Id>> = {
+        let strategy: Box<dyn strategy::Strategy<Id>> = {
             match options.strategy {
                 Strategy::FirstComeFirstServe => Box::new(FirstComeFirstServe::new(entries)),
                 Strategy::Proportional => Box::new(Proportional::new(entries, remaining_time)),
             }
         };
+
+        let mut strategy = PeekableStrategy::new(strategy);
 
         for (_, week_dates) in month.year().iter_weeks_in(month.month()) {
             let schedule = WorkSchedule::new(*week_dates.start(), *week_dates.end());
@@ -211,6 +230,7 @@ mod tests {
                     input: DynamicEntryInput::Flex { flex: 1 },
                     pause: None,
                     start: None,
+                    skip_dates: ArrayVec::new(),
                 }]
             })
         );
@@ -231,6 +251,7 @@ mod tests {
                     },
                     pause: None,
                     start: None,
+                    skip_dates: ArrayVec::new(),
                 }]
             }),
         );

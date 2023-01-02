@@ -2,10 +2,12 @@
 //! that decide when and where a task should be scheduled.
 
 mod first_come_first_serve;
+mod peekable;
 mod proportional;
 mod task;
 
 pub use first_come_first_serve::*;
+pub use peekable::*;
 pub use proportional::*;
 pub use task::*;
 
@@ -14,15 +16,14 @@ use std::ops::{Deref, DerefMut};
 use crate::time::Date;
 
 pub trait Strategy<Id> {
-    /// Returns the next task that should be scheduled on that date
-    /// without removing it.
-    #[must_use]
-    fn peek_task(&self, date: Date) -> Option<(&Id, &Task)>;
-
     /// Returns the next task that should be scheduled.
     ///
     /// The `date` is provided as a suggestion on which date
     /// the task might be scheduled.
+    ///
+    /// The strategy might return a different task based on the
+    /// date, for example if the task can not be scheduled on
+    /// that date.
     #[must_use]
     fn next_task(&mut self, date: Date) -> Option<(Id, Task)>;
 
@@ -47,10 +48,6 @@ impl<Id, S> Strategy<Id> for &mut S
 where
     S: Strategy<Id>,
 {
-    fn peek_task(&self, date: Date) -> Option<(&Id, &Task)> {
-        <S as Strategy<Id>>::peek_task(*self, date)
-    }
-
     fn next_task(&mut self, date: Date) -> Option<(Id, Task)> {
         <S as Strategy<Id>>::next_task(*self, date)
     }
@@ -65,10 +62,6 @@ where
 }
 
 impl<Id> Strategy<Id> for Box<dyn Strategy<Id>> {
-    fn peek_task(&self, date: Date) -> Option<(&Id, &Task)> {
-        Box::deref(self).peek_task(date)
-    }
-
     fn next_task(&mut self, date: Date) -> Option<(Id, Task)> {
         Box::deref_mut(self).next_task(date)
     }

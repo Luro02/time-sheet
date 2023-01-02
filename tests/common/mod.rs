@@ -94,3 +94,11 @@ pub fn make_global(working_time: WorkingDuration) -> String {
         working_time = working_time
     )
 }
+
+#[allow(dead_code)]
+pub fn debug_setup() {
+    std::env::set_var("RUST_BACKTRACE", "1");
+    std::env::set_var("RUST_APP_LOG", "trace");
+    color_backtrace::install();
+    pretty_env_logger::init_custom_env("RUST_APP_LOG");
+}

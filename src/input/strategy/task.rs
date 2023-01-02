@@ -1,6 +1,7 @@
 use core::ops::{Sub, SubAssign};
 
 use crate::time::{Date, TimeStamp, WorkingDuration};
+use crate::utils::ArrayVec;
 use crate::working_duration;
 
 #[derive(Debug, Copy, Clone, PartialEq)]
@@ -10,6 +11,7 @@ pub struct Task {
     can_be_split: bool,
     start: Option<TimeStamp>,
     flex: Option<usize>,
+    filter: ArrayVec<Date, 31>,
 }
 
 impl Task {
@@ -21,6 +23,7 @@ impl Task {
             can_be_split: true,
             start: None,
             flex: None,
+            filter: ArrayVec::new(),
         }
     }
 
@@ -31,6 +34,7 @@ impl Task {
             can_be_split: true,
             start: None,
             flex: Some(flex),
+            filter: ArrayVec::new(),
         }
     }
 
@@ -51,6 +55,12 @@ impl Task {
     }
 
     #[must_use]
+    pub fn with_filter(mut self, dates: ArrayVec<Date, 31>) -> Self {
+        self.filter = dates;
+        self
+    }
+
+    #[must_use]
     pub fn with_suggested_date(mut self, date: Date) -> Self {
         self.suggested_date = Some(date);
         self
@@ -60,6 +70,10 @@ impl Task {
     pub fn with_duration(mut self, duration: WorkingDuration) -> Self {
         self.duration = duration;
         self
+    }
+
+    pub fn has_filter(&self) -> bool {
+        !self.filter.is_empty()
     }
 
     #[must_use]
@@ -80,6 +94,16 @@ impl Task {
     #[must_use]
     pub const fn suggested_start(&self) -> Option<TimeStamp> {
         self.start
+    }
+
+    #[must_use]
+    pub fn applies_on(&self, date: Date) -> bool {
+        !self.filter.contains(&date)
+    }
+
+    #[must_use]
+    pub fn can_bypass_weekly_limit(&self) -> bool {
+        !self.filter.is_empty()
     }
 }
 

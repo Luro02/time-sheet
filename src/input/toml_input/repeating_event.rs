@@ -2,8 +2,8 @@ use std::str::FromStr;
 
 use serde::Deserialize;
 
-use crate::input::toml_input::Entry;
-use crate::time::{Date, TimeSpan, TimeStamp, WeekDay};
+use crate::input::toml_input::{DynamicEntry, Entry};
+use crate::time::{Date, TimeSpan, TimeStamp, WeekDay, WorkingDuration};
 use crate::utils::{MapEntry, StrExt};
 
 #[derive(Debug, Copy, Clone, PartialEq, Deserialize)]
@@ -185,17 +185,34 @@ impl InternalRepeatingEvent {
 }
 
 #[derive(Debug, Clone, PartialEq, Deserialize)]
+#[serde(untagged)]
+enum DynamicOrNormal {
+    Dynamic {
+        #[serde(flatten)]
+        entry: DynamicEntry,
+    },
+    Normal {
+        #[serde(default)]
+        action: String,
+        start: TimeStamp,
+        end: TimeStamp,
+        #[serde(default)]
+        pause: Option<WorkingDuration>,
+    },
+}
+
+#[derive(Debug, Clone, PartialEq, Deserialize)]
 pub struct RepeatingEvent {
-    #[serde(default)]
-    action: String,
     repeats: RepeatSpan,
     #[serde(flatten)]
     internal: InternalRepeatingEvent,
     end_date: Option<Date>,
-    start: TimeStamp,
-    end: TimeStamp,
     #[serde(default)]
     department: Option<String>,
+    #[serde(default, rename = "vacation")]
+    is_vacation: bool,
+    #[serde(flatten)]
+    inner: DynamicOrNormal,
 }
 
 impl RepeatingEvent {
@@ -209,13 +226,17 @@ impl RepeatingEvent {
         department: Option<String>,
     ) -> Self {
         Self {
-            action,
             repeats,
             internal: InternalRepeatingEvent::FixedStart { start_date },
-            start,
-            end,
             end_date,
             department,
+            inner: DynamicOrNormal::Normal {
+                action,
+                start,
+                end,
+                pause: None,
+            },
+            is_vacation: false,
         }
     }
 
@@ -229,19 +250,18 @@ impl RepeatingEvent {
         department: Option<String>,
     ) -> Self {
         Self {
-            action,
             repeats,
             internal: InternalRepeatingEvent::WeekDays { repeats_on },
-            start,
-            end,
             end_date,
             department,
+            inner: DynamicOrNormal::Normal {
+                action,
+                start,
+                end,
+                pause: None,
+            },
+            is_vacation: false,
         }
-    }
-
-    #[must_use]
-    pub fn time_span(&self) -> TimeSpan {
-        TimeSpan::new(self.start, self.end)
     }
 
     #[must_use]
@@ -259,7 +279,7 @@ impl RepeatingEvent {
             match &self.internal {
                 InternalRepeatingEvent::WeekDays { .. } => None,
                 InternalRepeatingEvent::FixedStart { start_date } => Some(*start_date),
-                InternalRepeatingEvent::FixedDates { .. } => unimplemented!("not supported"),
+                InternalRepeatingEvent::FixedDates { .. } => unreachable!("not supported"),
             }
         };
 
@@ -276,6 +296,20 @@ impl RepeatingEvent {
         )
     }
 
+    pub fn to_dynamic_entry(&self, department: &str) -> Option<DynamicEntry> {
+        // If a department is specified, only apply if the department matches
+        if self.department.is_some() && self.department.as_deref() != Some(department) {
+            return None;
+        }
+
+        if let DynamicOrNormal::Dynamic { entry } = &self.inner {
+            // update the action of the dynamic entry
+            Some(entry.clone())
+        } else {
+            None
+        }
+    }
+
     pub fn to_entry(&self, date: Date, department: &str) -> Option<Entry> {
         if !self.repeats_on(date) {
             return None;
@@ -286,14 +320,23 @@ impl RepeatingEvent {
             return None;
         }
 
-        // TODO: should `pause` be added?
-        Some(Entry::new(
-            date.day(),
-            self.action.clone(),
-            self.time_span(),
-            None,
-            None,
-        ))
+        if let DynamicOrNormal::Normal {
+            action,
+            start,
+            end,
+            pause,
+        } = &self.inner
+        {
+            Some(Entry::new(
+                date.day(),
+                action.to_string(),
+                TimeSpan::new(*start, *end),
+                *pause,
+                Some(self.is_vacation),
+            ))
+        } else {
+            None
+        }
     }
 }
 
@@ -302,7 +345,15 @@ impl<'de> MapEntry<'de> for RepeatingEvent {
     type Value = Self;
 
     fn new(key: Self::Key, mut value: Self::Value) -> Self {
-        value.action = key;
+        match &mut value.inner {
+            DynamicOrNormal::Dynamic { entry } => {
+                *entry = DynamicEntry::new(key, entry.clone());
+            }
+            DynamicOrNormal::Normal { action, .. } => {
+                *action = key;
+            }
+        }
+
         value
     }
 }

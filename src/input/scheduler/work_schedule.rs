@@ -1,4 +1,4 @@
-use crate::input::strategy::Strategy;
+use crate::input::strategy::{PeekableStrategy, Strategy};
 use crate::input::Scheduler;
 use crate::time::{Date, WorkingDuration};
 use crate::{min, working_duration};
@@ -48,7 +48,7 @@ impl WorkSchedule {
 
     pub fn schedule<S, P, Id, F>(
         &self,
-        mut strategy: P,
+        strategy: &mut PeekableStrategy<Id, P>,
         mut scheduler: S,
         fixed_scheduler: F,
     ) -> Vec<(Id, ScheduledTime)>
@@ -73,6 +73,16 @@ impl WorkSchedule {
             };
 
             let mut possible_work_duration = scheduler.has_time_for(date, task.duration());
+
+            if task.can_bypass_weekly_limit() {
+                // if the task can bypass the weekly limit, we can schedule it
+                // even if the weekly limit is reached
+                //
+                // TODO: this will be problematic for tasks that are way too long
+                // TODO: can result in daily limits being exceeded as well as conflicts
+                //       with fixed entries
+                possible_work_duration = task.duration();
+            }
 
             // skips days where no work is possible
             if possible_work_duration == working_duration!(00:00) {

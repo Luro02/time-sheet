@@ -84,6 +84,8 @@ impl MonthScheduler {
                     result += WorkingDuration::from_mins(remainder as u16);
                 }
 
+                debug!("week {} should have a duration of {}", week_number, result);
+
                 result
             }),
             current_week: 0,

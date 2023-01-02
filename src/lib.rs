@@ -3,7 +3,9 @@
     step_trait,
     trait_alias,
     associated_type_defaults,
-    const_mut_refs
+    const_mut_refs,
+    inline_const,
+    const_swap
 )]
 
 mod latex_generator;

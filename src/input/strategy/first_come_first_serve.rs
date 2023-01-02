@@ -23,32 +23,47 @@ impl<Id> FirstComeFirstServe<Id> {
         tasks.reverse();
         Self { tasks }
     }
+
+    fn next_task_position(&self, date: Date) -> Option<usize> {
+        // prioritize tasks that do apply on specific dates only:
+        if let Some((pos, _)) = self
+            .tasks
+            .iter()
+            .enumerate()
+            .rev()
+            .filter(|(_, (_, t))| t.applies_on(date) && t.has_filter())
+            .next()
+        {
+            return Some(pos);
+        }
+
+        self.tasks
+            .iter()
+            .enumerate()
+            .rev()
+            .filter(|(_, (_, t))| t.applies_on(date))
+            .map(|(i, _)| i)
+            .next()
+    }
 }
 
 impl<Id> Strategy<Id> for FirstComeFirstServe<Id>
 where
     Id: fmt::Debug + Clone,
 {
-    fn peek_task(&self, date: Date) -> Option<(&Id, &Task)> {
-        debug!("[fcfs] peeked task for date `{}`", date);
-        self.tasks.last().map(|(id, task)| (id, task))
-    }
+    fn next_task(&mut self, date: Date) -> Option<(Id, Task)> {
+        if let Some(next_task_position) = self.next_task_position(date) {
+            let (id, task) = self.tasks.remove(next_task_position);
+            debug!("requested next task, returning task with id `{:?}`", &id);
+            return Some((id, task));
+        }
 
-    fn next_task(&mut self, _date: Date) -> Option<(Id, Task)> {
-        // NOTE: date does not matter for now (until repeating entries can be dynamic).
-
-        debug!(
-            "[fcfs] requested next task, returning task with id `{:?}`",
-            self.tasks.last().map(|(id, _)| id)
-        );
-        // pop is more efficient than removing the first element
-        // so the tasks are reversed in the constructor
-        self.tasks.pop()
+        None
     }
 
     fn push_task(&mut self, id: Id, task: Task) {
         debug!(
-            "[fcfs] pushed task with id `{:?}`, remaining duration: {}",
+            "pushed task with id `{:?}`, remaining duration: {}",
             id,
             task.duration()
         );
