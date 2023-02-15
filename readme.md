@@ -99,14 +99,14 @@ end_date = 2023-01-01
 start = "09:35"
 end = "11:15"
 repeats_on = ["Tuesday"]
-repeats = "weekly"
+repeats_every = "week"
 department = "IANA"
 
 [repeating."Tutoren Besprechung"]
 start = "10:00"
 end = "11:00"
 repeats_on = ["Friday"]
-repeats = "weekly"
+repeats_every = "week"
 department = "IANA"
 ```
 
