@@ -122,7 +122,7 @@ impl Month {
     }
 
     #[must_use]
-    fn real_expected_working_duration(&self) -> WorkingDuration {
+    pub fn real_expected_working_duration(&self) -> WorkingDuration {
         self.expected_working_duration
             .unwrap_or(working_duration!(40:00))
     }

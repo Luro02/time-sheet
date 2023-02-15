@@ -93,7 +93,7 @@ impl<'a> LatexGenerator<'a> {
             );
         }
 
-        let working_duration = self.config.month().expected_working_duration();
+        let working_duration = self.config.month().real_expected_working_duration();
         latex_file_content = latex_file_content
             .replace(
                 "\\centering 40:00",
