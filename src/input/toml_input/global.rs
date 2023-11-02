@@ -12,6 +12,8 @@ pub struct Config {
     latex_mk_path: Option<PathBuf>,
     #[serde(default)]
     output_format: Option<String>,
+    #[serde(default)]
+    preserve_dir: Option<PathBuf>,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -43,6 +45,13 @@ impl Global {
         self.config
             .as_ref()
             .and_then(|config| config.latex_mk_path.as_deref())
+    }
+
+    #[must_use]
+    pub fn preserve_dir(&self) -> Option<&Path> {
+        self.config
+            .as_ref()
+            .and_then(|config| config.preserve_dir.as_deref())
     }
 
     pub fn repeating_in_month<'a>(

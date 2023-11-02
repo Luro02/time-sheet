@@ -53,7 +53,8 @@ impl<'a> LatexGenerator<'a> {
         self.config.write_global_json(&global_path)?;
 
         info!("Generating latex file");
-        let latex_file = temp_dir.join("output.tex");
+        let latex_file = temp_dir.join("output.tex").canonicalize()?;
+        debug!("latex_file: {}", latex_file.display());
         let output = Command::new("java")
             .arg("-jar")
             .arg(&jar_path)

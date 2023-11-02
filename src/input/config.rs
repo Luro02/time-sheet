@@ -119,6 +119,12 @@ impl ConfigBuilder {
             month.schedule_holiday(holiday);
         }
 
+        let mut preserve_dir = self.preserve_dir;
+
+        if let Some(dir) = self.global.preserve_dir() {
+            preserve_dir = Some(dir.to_path_buf());
+        }
+
         Config {
             month,
             mail: self.global.mail().cloned(),
@@ -141,7 +147,7 @@ impl ConfigBuilder {
                 }
             },
             output,
-            preserve_dir: self.preserve_dir,
+            preserve_dir: preserve_dir,
             latex_mk_path: self.global.latex_mk_path().map(|v| v.to_path_buf()),
         }
     }
