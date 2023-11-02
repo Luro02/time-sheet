@@ -41,6 +41,10 @@ impl<'a> LatexGenerator<'a> {
                 TempDir::new()?.into_path()
             }
         };
+
+        // ensure the temp_dir exists:
+        fs::create_dir_all(&temp_dir)?;
+
         let month_path = temp_dir.join("month.json");
         let global_path = temp_dir.join("global.json");
         let jar =
