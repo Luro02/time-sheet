@@ -53,3 +53,7 @@ optional = true
 pretty_assertions = "1.4"
 time = { version = "0.3", default-features = false }
 minreq = { version = "2.11", features = ["https"] }
+
+[profile.release]
+strip = "debuginfo"
+lto = "fat"
