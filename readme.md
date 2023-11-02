@@ -159,8 +159,8 @@ months = 1
 previous_month = "0:00"
 next_month = "0:00"
 
-# Specify that no repeating event
-# can happen in that time.
+# Specify that no repeating or dynamic
+# event can happen in that time.
 #
 # In this case, because of semester
 # holidays.
