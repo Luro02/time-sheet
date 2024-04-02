@@ -11,8 +11,8 @@ use serde::ser;
 
 use crate::iter_const;
 
-mod iterator;
 mod array_vec;
+mod iterator;
 mod macros;
 mod map_entry;
 

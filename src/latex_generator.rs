@@ -2,6 +2,7 @@ use std::fs;
 use std::path::Path;
 use std::process::Command;
 
+use anyhow::Context;
 use log::{debug, info};
 use tempfile::TempDir;
 
@@ -57,7 +58,7 @@ impl<'a> LatexGenerator<'a> {
         self.config.write_global_json(&global_path)?;
 
         info!("Generating latex file");
-        let latex_file = temp_dir.canonicalize()?.join("output.tex");
+        let latex_file = dunce::canonicalize(temp_dir)?.join("output.tex");
         debug!("latex_file: {}", latex_file.display());
         let output = Command::new("java")
             .arg("-jar")
@@ -75,6 +76,8 @@ impl<'a> LatexGenerator<'a> {
 
         // fix the latex file, so it does compile:
         let mut latex_file_content = inject_fix(utils::read_to_string(&latex_file)?.lines());
+
+        info!("Successfully read latex file");
 
         if let Some(signature) = self.config.bg_content() {
             latex_file_content = latex_file_content.replace(
@@ -124,7 +127,8 @@ impl<'a> LatexGenerator<'a> {
             renderer.add_asset_from_bytes(
                 //
                 new_path,
-                &fs::read(signature.path())?,
+                &fs::read(signature.path())
+                    .with_context(|| format!("Failed to read signature file"))?,
             )?;
         }
 
