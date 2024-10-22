@@ -41,6 +41,15 @@ $ cargo +nightly build --release
 
 The binary will be in `target/release/time-sheet.exe`.
 
+Alternatively, you can execute the program without first building, with this command:
+```
+$ cargo +nightly run --release -- <here the arguments>
+```
+for example like this
+```
+$ cargo +nightly run --release -- make --global path/to/global.toml --month path/to/month/02.toml
+```
+
 For execution you have to make sure that the files in `resources/` are present
 and the following commands have to work:
 - `java`
