@@ -41,6 +41,11 @@ $ cargo +nightly build --release
 
 The binary will be in `target/release/time-sheet.exe`.
 
+For execution you have to make sure that the files in `resources/` are present
+and the following commands have to work:
+- `java`
+- `latexmk` (I installed [this one](https://miktex.org/download))
+
 ## Example: Math Tutorium
 
 The program requires two files as input.
