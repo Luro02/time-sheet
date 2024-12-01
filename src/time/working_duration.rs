@@ -36,7 +36,7 @@ pub struct InvalidWorkingDuration {
 
 impl WorkingDuration {
     pub const fn new(hours: u8, minutes: u8) -> Result<Self, InvalidWorkingDuration> {
-        if hours > 99 || minutes > 60 {
+        if hours > 255 || minutes > 60 {
             return Err(InvalidWorkingDuration { hours, minutes });
         }
 
@@ -47,8 +47,8 @@ impl WorkingDuration {
     #[doc(hidden)]
     #[must_use]
     pub const unsafe fn new_unchecked(hours: u8, minutes: u8) -> Self {
-        if hours > 99 || minutes > 60 {
-            unreachable_unchecked!("hours and minutes must be in range 0..=99 but are not");
+        if hours > 255 || minutes > 60 {
+            unreachable_unchecked!("hours and minutes must be in range 0..=255 but are not");
         }
 
         Self { hours, minutes }
@@ -59,8 +59,8 @@ impl WorkingDuration {
         let hours = mins / 60;
         let minutes = mins % 60;
 
-        if hours > 99 {
-            panic!("hours must be in range 0..=99");
+        if hours > 255 {
+            panic!("hours must be in range 0..=255");
         }
 
         unsafe { Self::new_unchecked(hours as u8, minutes as u8) }
