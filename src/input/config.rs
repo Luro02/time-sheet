@@ -58,7 +58,7 @@ impl ConfigBuilder {
     }
 
     #[must_use]
-    pub fn build(self) -> Config {
+    pub fn build(self) -> anyhow::Result<Config> {
         let default_file_name = PathBuf::from(self.global.resolve_output(&self.month));
 
         let output = {
@@ -116,7 +116,7 @@ impl ConfigBuilder {
         }
 
         if let Some(holiday) = self.month.holiday() {
-            month.schedule_holiday(holiday);
+            month.schedule_holiday(holiday)?;
         }
 
         let mut preserve_dir = self.preserve_dir;
@@ -125,7 +125,7 @@ impl ConfigBuilder {
             preserve_dir = Some(dir.to_path_buf());
         }
 
-        Config {
+        Ok(Config {
             month,
             mail: self.global.mail().cloned(),
             global_file: GlobalFile::from((
@@ -149,7 +149,7 @@ impl ConfigBuilder {
             output,
             preserve_dir: preserve_dir,
             latex_mk_path: self.global.latex_mk_path().map(|v| v.to_path_buf()),
-        }
+        })
     }
 }
 

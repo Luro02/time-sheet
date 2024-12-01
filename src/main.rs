@@ -111,7 +111,7 @@ fn build_config(global: &Path, month: &Path, output: &Path) -> anyhow::Result<Co
 
     config.output(output);
 
-    let config = config.build();
+    let config = config.build()?;
 
     info!("finished building config");
 

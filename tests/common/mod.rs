@@ -63,7 +63,8 @@ pub fn get_proportions(json_month_file: &MonthFile) -> IndexMap<&str, WorkingDur
 pub fn make_month_file(global: toml_input::Global, month: toml_input::Month) -> MonthFile {
     let config = Config::try_from_toml(month, global)
         .expect("config should be valid")
-        .build();
+        .build()
+        .expect("config should build");
 
     let json_month_file: MonthFile = serde_json::from_str(
         &config

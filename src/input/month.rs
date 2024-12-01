@@ -103,13 +103,28 @@ impl Month {
         result
     }
 
-    pub fn schedule_holiday(&mut self, holiday: &Holiday) {
-        self.entries.extend(holiday.to_entry(
+    pub fn schedule_holiday(&mut self, holiday: &Holiday) -> anyhow::Result<()> {
+        let entry = holiday.to_entry(
             self.year,
             self.month,
             self.real_expected_working_duration(),
             |task| self.schedule(task),
-        ));
+        );
+
+        // when a fixed entry is scheduled on the same day a holiday is,
+        // the holiday will not be present in the final output.
+
+        // To prevent this, an error is raised.
+        if entry.is_empty() {
+            return Err(anyhow::anyhow!(
+                "Failed to schedule holiday on the day {}. Please make sure that there are no other entries on that day.",
+                holiday.day()
+            ));
+        }
+
+        self.entries.extend(entry);
+
+        Ok(())
     }
 
     /// Returns the amount of time that the user should have worked in this month.

@@ -49,6 +49,11 @@ impl Holiday {
     }
 
     #[must_use]
+    pub fn day(&self) -> usize {
+        self.day
+    }
+
+    #[must_use]
     pub fn to_entry(
         &self,
         year: Year,
