@@ -21,7 +21,7 @@ macro_rules! working_duration {
 }
 
 #[derive(Debug, Copy, Clone, Display, PartialEq, Eq, PartialOrd, Ord, Hash, Default)]
-#[display(fmt = "{:02}:{:02}", hours, minutes)]
+#[display("{:02}:{:02}", hours, minutes)]
 pub struct WorkingDuration {
     hours: u8,
     minutes: u8,
@@ -36,7 +36,7 @@ pub struct InvalidWorkingDuration {
 
 impl WorkingDuration {
     pub const fn new(hours: u8, minutes: u8) -> Result<Self, InvalidWorkingDuration> {
-        if hours > 255 || minutes > 60 {
+        if minutes > 60 {
             return Err(InvalidWorkingDuration { hours, minutes });
         }
 
@@ -47,7 +47,7 @@ impl WorkingDuration {
     #[doc(hidden)]
     #[must_use]
     pub const unsafe fn new_unchecked(hours: u8, minutes: u8) -> Self {
-        if hours > 255 || minutes > 60 {
+        if minutes > 60 {
             unreachable_unchecked!("hours and minutes must be in range 0..=255 but are not");
         }
 

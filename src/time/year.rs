@@ -13,7 +13,7 @@ use crate::{iter_const, unreachable_unchecked};
 )]
 #[serde(from = "usize")]
 #[serde(into = "usize")]
-#[display(fmt = "{}", _0)]
+#[display("{}", _0)]
 pub struct Year(usize);
 
 /// The number of days from start_month..end_month in the `year`.
@@ -291,7 +291,7 @@ impl AddAssign<usize> for Year {
 }
 
 impl Step for Year {
-    fn steps_between(start: &Self, end: &Self) -> Option<usize> {
+    fn steps_between(start: &Self, end: &Self) -> (usize, Option<usize>) {
         <usize as Step>::steps_between(&start.as_usize(), &end.as_usize())
     }
 

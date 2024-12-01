@@ -6,7 +6,7 @@ use crate::time::{TimeStamp, WorkingDuration};
 use crate::{max, min};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Display)]
-#[display(fmt = "{} - {}", start, end)]
+#[display("{} - {}", start, end)]
 pub struct TimeSpan {
     start: TimeStamp,
     end: TimeStamp,

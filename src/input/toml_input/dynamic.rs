@@ -220,10 +220,7 @@ mod tests {
     #[test]
     fn test_deserialize_flex() {
         assert_eq!(
-            toml::from_str::<'_, EntrySections>(concat!(
-                "[entry.\"first example\"]\n",
-                "flex = 1\n",
-            )),
+            toml::from_str::<EntrySections>(concat!("[entry.\"first example\"]\n", "flex = 1\n",)),
             Ok(EntrySections {
                 entry: vec![DynamicEntry {
                     action: "first example".to_string(),
@@ -239,7 +236,7 @@ mod tests {
     #[test]
     fn test_deserialize_fixed() {
         assert_eq!(
-            toml::from_str::<'_, EntrySections>(concat!(
+            toml::from_str::<EntrySections>(concat!(
                 "[entry.\"another example\"]\n",
                 "duration = \"41:23\"\n",
             )),

@@ -5,7 +5,7 @@ use derive_more::Display;
 use serde::{de, Deserialize, Serialize};
 
 #[derive(Debug, Clone, Display, PartialEq, Serialize)]
-#[display(fmt = "{}", _0)]
+#[display("{}", _0)]
 pub struct LatexString(String);
 
 impl FromStr for LatexString {

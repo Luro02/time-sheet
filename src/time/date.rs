@@ -410,7 +410,7 @@ impl fmt::Display for Date {
 }
 
 impl Step for Date {
-    fn steps_between(start: &Self, end: &Self) -> Option<usize> {
+    fn steps_between(start: &Self, end: &Self) -> (usize, Option<usize>) {
         <usize as Step>::steps_between(&start.days_since_base_date(), &end.days_since_base_date())
     }
 

@@ -88,7 +88,7 @@ impl TryFrom<usize> for Month {
 
 // TODO: test this?
 impl Step for Month {
-    fn steps_between(start: &Self, end: &Self) -> Option<usize> {
+    fn steps_between(start: &Self, end: &Self) -> (usize, Option<usize>) {
         <usize as Step>::steps_between(&start.as_usize(), &end.as_usize())
     }
 

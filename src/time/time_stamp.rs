@@ -21,7 +21,7 @@ macro_rules! time_stamp {
 }
 
 #[derive(Debug, Copy, Clone, Display, PartialEq, Eq, PartialOrd, Ord, Hash)]
-#[display(fmt = "{:02}:{:02}", hour, minute)]
+#[display("{:02}:{:02}", hour, minute)]
 pub struct TimeStamp {
     hour: u8,
     minute: u8,

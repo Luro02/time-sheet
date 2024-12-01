@@ -5,9 +5,9 @@ use serde::{de, ser, Deserialize, Serialize};
 
 #[derive(Debug, Copy, Clone, Display)]
 pub enum WorkingArea {
-    #[display(fmt = "ub")]
+    #[display("ub")]
     Universitary,
-    #[display(fmt = "gf")]
+    #[display("gf")]
     LargeScaleResearchSector,
 }
 
