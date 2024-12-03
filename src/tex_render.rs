@@ -1,10 +1,12 @@
-use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
+use anyhow::Context;
 use tempfile::TempDir;
 use thiserror::Error;
+
+use crate::utils;
 
 #[derive(Debug, Error)]
 pub enum RenderingError {
@@ -29,7 +31,7 @@ pub struct TexRender {
 impl TexRender {
     pub fn from_bytes(source: impl AsRef<[u8]>) -> anyhow::Result<Self> {
         let working_dir = TempDir::new()?;
-        fs::write(working_dir.path().join("input.tex"), source.as_ref())?;
+        utils::write(working_dir.path().join("input.tex"), source.as_ref())?;
 
         Ok(Self {
             latex_mk_path: "latexmk".into(),
@@ -47,8 +49,8 @@ impl TexRender {
     ) -> io::Result<()> {
         let workdir_filepath = self.working_dir.path().join(filepath.as_ref());
 
-        fs::create_dir_all(workdir_filepath.parent().expect("filename has no parent?"))?;
-        fs::write(workdir_filepath, bytes)
+        utils::create_dir_all(workdir_filepath.parent().expect("filename has no parent?"))?;
+        utils::write(workdir_filepath, bytes)
     }
 
     pub fn preserve_dir(&mut self, path: impl Into<PathBuf>) -> &mut Self {
@@ -90,16 +92,23 @@ impl TexRender {
 
         if !output.status.success() {
             if let Some(path) = self.preserve_dir {
-                fs::create_dir_all(&path)?;
+                utils::create_dir_all(&path)?;
                 fs_extra::dir::copy(
                     self.working_dir.path(),
-                    path,
+                    &path,
                     &fs_extra::dir::CopyOptions {
                         overwrite: true,
                         skip_exist: false,
                         ..Default::default()
                     },
-                )?;
+                )
+                .with_context(|| {
+                    format!(
+                        "failed to copy `{}` to `{}`",
+                        self.working_dir.path().display(),
+                        path.display()
+                    )
+                })?;
             }
             // latexmk failed,
             return Err(anyhow::anyhow!(
@@ -110,6 +119,6 @@ impl TexRender {
             ));
         }
 
-        Ok(fs::read(output_file).map_err(RenderingError::ReadOutputFile)?)
+        Ok(utils::read(output_file).map_err(RenderingError::ReadOutputFile)?)
     }
 }

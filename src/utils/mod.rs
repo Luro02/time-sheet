@@ -91,13 +91,52 @@ pub fn overflowing_add(base: u64, to_add: u64, limit: u64) -> u64 {
 }
 
 pub fn read_to_string(path: impl AsRef<Path>) -> io::Result<String> {
-    trace!("reading from: {}", path.as_ref().display());
-    fs::read_to_string(path)
+    let path = path.as_ref();
+    trace!("reading from: {}", path.display());
+    fs::read_to_string(path).map_err(|error| {
+        io::Error::new(
+            error.kind(),
+            format!("failed to read string from file: {}", path.display()),
+        )
+    })
+}
+
+pub fn read(path: impl AsRef<Path>) -> io::Result<Vec<u8>> {
+    let path = path.as_ref();
+    trace!("reading from: {}", path.display());
+    fs::read(path).map_err(|error| {
+        io::Error::new(
+            error.kind(),
+            format!("failed to read from file: {}", path.display()),
+        )
+    })
 }
 
 pub fn write(path: impl AsRef<Path>, contents: impl AsRef<[u8]>) -> io::Result<()> {
-    trace!("writing to: {}", path.as_ref().display());
-    fs::write(path, contents)
+    let path = path.as_ref();
+    trace!("writing to: {}", path.display());
+    fs::write(path, contents).map_err(|error| {
+        io::Error::new(
+            error.kind(),
+            format!("failed to write to file: {}", path.display()),
+        )
+    })
+}
+
+/// Creates a directory at the given path, including all parent directories.
+///
+/// Equivalent to `fs::create_dir_all`, but returns an error message with the
+/// path that failed to be created.
+pub fn create_dir_all(path: impl AsRef<Path>) -> io::Result<()> {
+    let path = path.as_ref();
+    trace!("creating directory: {}", path.display());
+
+    fs::create_dir_all(path).map_err(|error| {
+        io::Error::new(
+            error.kind(),
+            format!("failed to create directory: {}", path.display()),
+        )
+    })
 }
 
 pub trait PathExt {

@@ -14,8 +14,6 @@ mod utils;
 pub mod input;
 pub mod time;
 
-use std::fs;
-
 use log::{info, warn};
 
 use crate::input::Config;
@@ -38,7 +36,7 @@ pub fn generate_time_sheet(config: &Config) -> anyhow::Result<()> {
 
     let output = config.output();
     if let Some(parent) = output.parent() {
-        fs::create_dir_all(parent)?;
+        utils::create_dir_all(parent)?;
     }
 
     generator.generate(output)?;

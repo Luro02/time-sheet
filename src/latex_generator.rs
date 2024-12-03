@@ -1,4 +1,3 @@
-use std::fs;
 use std::path::Path;
 use std::process::Command;
 
@@ -44,7 +43,7 @@ impl<'a> LatexGenerator<'a> {
         };
 
         // ensure the temp_dir exists:
-        fs::create_dir_all(&temp_dir)?;
+        utils::create_dir_all(&temp_dir)?;
 
         let month_path = temp_dir.join("month.json");
         let global_path = temp_dir.join("global.json");
@@ -127,7 +126,7 @@ impl<'a> LatexGenerator<'a> {
             renderer.add_asset_from_bytes(
                 //
                 new_path,
-                &fs::read(signature.path())
+                &utils::read(signature.path())
                     .with_context(|| format!("Failed to read signature file"))?,
             )?;
         }
