@@ -1,10 +1,11 @@
 use std::path::{Path, PathBuf};
 
+use formatx::Template;
 use serde::Deserialize;
 
 use crate::input::toml_input::{self, About, Contract, DynamicEntry, Entry, Mail, RepeatingEvent};
 use crate::time::{Date, Month, Year};
-use crate::utils;
+use crate::utils::{self, StrExt};
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct Config {
@@ -98,12 +99,33 @@ impl Global {
                     )
                 },
                 |f| {
-                    f.replace("{year}", &month.general().year().to_string())
-                        .replace("{month}", &month.general().month().to_string())
+                    let mut template = f
+                        .parse::<Template>()
+                        .expect("Failed to parse the template string for the output filename");
+
+                    template.replace("year", month.general().year().to_string());
+                    template.replace("month", month.general().month().to_string());
+                    let [Some(first_name), Some(last_name)] = self.about().name().split_exact(" ")
+                    else {
+                        panic!(
+                            "Failed to split the name into first and last name: '{}'",
+                            self.about().name()
+                        );
+                    };
+                    template.replace("first_name", first_name);
+                    template.replace("last_name", last_name);
+
+                    template
+                        .text()
+                        .expect("Failed to format the output filename")
                 },
             );
 
-        format!("{}.pdf", format)
+        if format.ends_with(".pdf") {
+            format
+        } else {
+            format!("{}.pdf", format)
+        }
     }
 
     #[must_use]

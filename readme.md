@@ -67,6 +67,32 @@ It can look like this
 name = "Max Mustermann"
 staff_id = 1344222
 
+# This section is for general options related that do not fit
+# in any other section, like specifying the filenames of generated
+# files or whether the temporary folder should not be temporary.
+[config]
+# By default the generated files will have a filename in the format:
+# "{year:04}-{month:02}.pdf", like "2024-01.pdf"
+#
+# With this option one can specify a different format.
+# The following things can be inserted into the format string:
+# - last_name (will be parsed from the name field in the about section,
+#   make sure that the name is "{first_name} {last_name}")
+# - first_name
+# - year
+# - month
+#
+# You can add padding to the numbers like in the following example.
+output_format = "{last_name}_{first_name}_{month:02}_{year:04}.pdf"
+
+# Here you can manually specify the path to the latexmk binary:
+# latex_mk_path = "C:\\path\\to\\latexmk"
+
+# If specified, the program will use that directory for storing
+# the temp files.
+# preserve_dir = "C:\\path\to\\non-temporary\\directory\\"
+
+
 [about.signature]
 # the path to an image of the signature
 path = "D:\\Signature.png"

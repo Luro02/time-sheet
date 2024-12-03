@@ -28,6 +28,7 @@ fs_extra = "1.3"
 v_latexescape = "0.14"
 static_assertions = "1.1"
 dunce = "1.0"
+formatx = "0.2.2"
 
 # can be removed once const-fns panic can have arguments
 const_panic = "0.2"
