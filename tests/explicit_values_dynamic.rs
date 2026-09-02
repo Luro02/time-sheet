@@ -9,7 +9,7 @@ mod common;
 
 #[test]
 fn test_explicit_start_and_pause() {
-    std::env::set_var("RUST_BACKTRACE", "1");
+    unsafe { std::env::set_var("RUST_BACKTRACE", "1") };
 
     let global: Global = toml::from_str(&common::make_global(working_duration!(40:00)))
         .expect("toml should be valid");

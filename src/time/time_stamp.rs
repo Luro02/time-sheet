@@ -3,7 +3,7 @@ use std::str::FromStr;
 use std::time::Duration;
 
 use derive_more::Display;
-use serde::{de, ser, Deserialize, Serialize};
+use serde::{Deserialize, Serialize, de, ser};
 use thiserror::Error;
 
 use crate::time::WorkingDuration;

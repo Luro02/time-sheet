@@ -1,12 +1,13 @@
-use std::iter::Step;
 use std::ops::{Add, AddAssign, RangeInclusive};
 
 use derive_more::Display;
 use serde::{Deserialize, Serialize};
 
-use crate::time::{Date, Month, WeekDay};
+use crate::iter_const;
+use crate::time::{Date, DateRangeExt, Month, WeekDay};
+#[cfg(test)]
+use crate::unreachable_unchecked;
 use crate::utils::IteratorExt;
-use crate::{iter_const, unreachable_unchecked};
 
 #[derive(
     Debug, Clone, Copy, PartialEq, PartialOrd, Eq, Ord, Hash, Deserialize, Serialize, Display,
@@ -131,6 +132,8 @@ impl Year {
     }
 
     // TODO: improve algorithm?
+    // only used by tests, see `Date::from_days_since_base_date`
+    #[cfg(test)]
     pub(super) const fn from_days_since_base_date(days: usize) -> Self {
         // Approximate the years upper/lower bounds:
         let lower_year = days / 366;
@@ -151,11 +154,7 @@ impl Year {
     /// Returns the number of days in this year.
     #[must_use]
     pub const fn days(&self) -> usize {
-        if self.is_leap_year() {
-            366
-        } else {
-            365
-        }
+        if self.is_leap_year() { 366 } else { 365 }
     }
 
     /// Returns the number of weeks in this year's provided month.
@@ -214,7 +213,7 @@ impl Year {
         month: Month,
     ) -> impl Iterator<Item = (usize, RangeInclusive<Date>)> + Clone {
         self.days_in(month)
-            .into_iter()
+            .dates()
             .filter_map_with(0, |date, mut current_week| {
                 let mut result = None;
 
@@ -292,34 +291,6 @@ impl AddAssign<usize> for Year {
     }
 }
 
-impl Step for Year {
-    fn steps_between(start: &Self, end: &Self) -> (usize, Option<usize>) {
-        <usize as Step>::steps_between(&start.as_usize(), &end.as_usize())
-    }
-
-    fn forward_checked(start: Self, count: usize) -> Option<Self> {
-        <usize as Step>::forward_checked(start.as_usize(), count).map(Year::new)
-    }
-
-    fn backward_checked(start: Self, count: usize) -> Option<Self> {
-        <usize as Step>::backward_checked(start.as_usize(), count).map(Year::new)
-    }
-
-    fn forward_overflowing(start: Self, count: usize) -> (Self, bool) {
-        match Self::forward_checked(start, count) {
-            Some(value) => (value, false),
-            None => (start, true),
-        }
-    }
-
-    fn backward_overflowing(start: Self, count: usize) -> (Self, bool) {
-        match Self::backward_checked(start, count) {
-            Some(value) => (value, false),
-            None => (start, true),
-        }
-    }
-}
-
 impl From<usize> for Year {
     fn from(value: usize) -> Self {
         Self::new(value)
@@ -340,7 +311,7 @@ mod tests {
 
     #[test]
     fn test_days_in_week() {
-        for year in Year::new(2022)..=Year::new(2023) {
+        for year in (2022..=2023).map(Year::new) {
             for month in Month::months() {
                 for (week_number, expected_days) in year.iter_weeks_in(month) {
                     assert_eq!(year.days_in_week(month, week_number), Some(expected_days));
@@ -391,7 +362,7 @@ mod tests {
     #[test]
     fn test_days() {
         // this test runs under the assumption that year.is_leap_year works correctly
-        for year in Year::new(1904)..=Year::new(3000) {
+        for year in (1904..=3000).map(Year::new) {
             if year.is_leap_year() {
                 assert_eq!(year.days(), 366, "{} should have 366 days", year.as_usize());
             } else {
@@ -423,7 +394,7 @@ mod tests {
         let base_year = Year::new(2000);
 
         let mut elapsed_days = 0;
-        for year in base_year..=Year::new(2030) {
+        for year in (base_year.as_usize()..=2030).map(Year::new) {
             assert_eq!(
                 year.days_since(base_year),
                 elapsed_days,
@@ -457,7 +428,7 @@ mod tests {
 
     #[test]
     fn test_year_range() {
-        let mut iter = (Year::new(2000)..Year::new(2006)).into_iter();
+        let mut iter = (2000..2006).map(Year::new).into_iter();
         assert_eq!(iter.next(), Some(Year::new(2000)));
         assert_eq!(iter.next(), Some(Year::new(2001)));
         assert_eq!(iter.next(), Some(Year::new(2002)));
@@ -466,7 +437,7 @@ mod tests {
         assert_eq!(iter.next(), Some(Year::new(2005)));
         assert_eq!(iter.next(), None);
 
-        let mut iter = (Year::new(2000)..Year::new(2000)).into_iter();
+        let mut iter = (2000..2000).map(Year::new).into_iter();
         assert_eq!(iter.next(), None);
     }
 
@@ -495,7 +466,7 @@ mod tests {
         assert_eq!(Year::from_days_since_base_date(738886), Year::new(2023));
         assert_eq!(Year::new(2023).days_since_base_date(), 738886);
 
-        for year in Year::new(0)..=Year::new(3000) {
+        for year in (0..=3000).map(Year::new) {
             let days_since_base_date = year.days_since_base_date();
             assert_eq!(
                 Year::from_days_since_base_date(days_since_base_date),
@@ -507,7 +478,7 @@ mod tests {
         }
 
         let mut expected_days_since_base_date = 0;
-        for year in Year::new(0)..=Year::new(3000) {
+        for year in (0..=3000).map(Year::new) {
             let days_since_base_date = year.days_since_base_date();
 
             assert_eq!(

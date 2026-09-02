@@ -109,13 +109,13 @@ mod tests {
 
     use pretty_assertions::assert_eq;
 
-    use crate::time::{Month, Year};
+    use crate::time::{DateRangeExt, Month, Year};
 
     #[test]
     fn test_empty_scheduler() {
         let scheduler = TimeSpanScheduler::empty();
 
-        for day in Year::new(2022).days_in(Month::November) {
+        for day in Year::new(2022).days_in(Month::November).dates() {
             assert_eq!(
                 scheduler.has_time_for(day, working_duration!(01:01)),
                 working_duration!(01:01),

@@ -2,8 +2,8 @@ use std::fmt;
 
 use log::debug;
 
-use crate::input::strategy::Strategy;
 use crate::input::Task;
+use crate::input::strategy::Strategy;
 use crate::time::Date;
 
 /// The tasks are scheduled in the order they are given and until

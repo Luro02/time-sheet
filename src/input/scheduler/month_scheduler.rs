@@ -2,7 +2,7 @@ use log::debug;
 
 use crate::input::scheduler::{Scheduler, TimeSpanScheduler};
 use crate::input::toml_input::Transfer;
-use crate::time::{Date, DurationExt, Month, WorkingDuration, Year};
+use crate::time::{Date, DateIter, DateRangeExt, DurationExt, Month, WorkingDuration, Year};
 use crate::utils::{self, ArrayExt};
 use crate::working_duration;
 
@@ -52,7 +52,7 @@ impl MonthScheduler {
             maximum_time
         );
 
-        let mut iter = year.days_in(month);
+        let mut iter = year.days_in(month).dates();
 
         let workday_distribution = [(); 31].map(|_| {
             if let Some(next_date) = iter.next() {
@@ -74,7 +74,11 @@ impl MonthScheduler {
             weeks: Self::make_scheduler(year, month, |week_number| {
                 let mut result = working_duration!(00:00);
 
-                for day in year.days_in_week(month, week_number).into_iter().flatten() {
+                for day in year
+                    .days_in_week(month, week_number)
+                    .into_iter()
+                    .flat_map(DateIter::new)
+                {
                     result += WorkingDuration::from_mins(distribution[day.day() - 1] as u16);
                 }
 

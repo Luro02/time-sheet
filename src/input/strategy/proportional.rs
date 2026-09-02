@@ -1,7 +1,7 @@
 use std::fmt;
 
-use crate::input::strategy::{FirstComeFirstServe, Strategy};
 use crate::input::Task;
+use crate::input::strategy::{FirstComeFirstServe, Strategy};
 use crate::time::{Date, WorkingDuration};
 use crate::utils;
 

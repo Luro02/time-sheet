@@ -2,8 +2,8 @@ use std::str::FromStr;
 
 use serde::{Deserialize, Serialize};
 
-use crate::input::toml_input;
 use crate::input::WorkingArea;
+use crate::input::toml_input;
 use crate::latex_string::LatexString;
 use crate::time::WorkingDuration;
 use crate::utils;

@@ -2,7 +2,7 @@ use serde::Deserialize;
 
 use crate::input::toml_input::repeating::{CustomEnd, RepeatsEvery};
 use crate::input::toml_input::{DynamicEntry, Entry};
-use crate::time::{Date, Month, TimeSpan, TimeStamp, WeekDay, WorkingDuration, Year};
+use crate::time::{Date, DateRangeExt, Month, TimeSpan, TimeStamp, WeekDay, WorkingDuration, Year};
 use crate::utils::{ArrayVec, MapEntry};
 
 #[derive(Debug, Clone, PartialEq)]
@@ -154,14 +154,14 @@ impl RepeatingEvent {
     ) -> impl IntoIterator<Item = DynamicEntry> + '_ {
         let mut entries: ArrayVec<_, 31> = ArrayVec::new();
 
-        let range = Date::first_day(year, month)..=Date::last_day(year, month);
+        let dates = (Date::first_day(year, month)..=Date::last_day(year, month)).dates();
 
         if let Some(e) = self.to_dynamic_entry(department) {
-            for date in range.clone() {
+            for date in dates.clone() {
                 if can_repeat_on(date) && self.repeats_on(date) {
                     entries.push(
                         e.clone()
-                            .with_skip_dates(range.clone().filter(|d| d != &date).collect()),
+                            .with_skip_dates(dates.clone().filter(|d| d != &date).collect()),
                     );
                 }
             }

@@ -1,8 +1,8 @@
 use std::borrow::Cow;
 
 use lettre::message::{Mailbox, MessageBuilder};
-use lettre::transport::smtp::authentication::Credentials;
 use lettre::transport::smtp::SmtpTransport;
+use lettre::transport::smtp::authentication::Credentials;
 use serde::Deserialize;
 
 #[derive(Deserialize, Debug, Clone)]

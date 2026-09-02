@@ -5,9 +5,9 @@ use std::path::{Path, PathBuf};
 
 use anyhow::Context as _;
 use argh::FromArgs;
+use lettre::Transport;
 use lettre::message::header::ContentType;
 use lettre::message::{Attachment, SinglePart};
-use lettre::Transport;
 use log::{error, info};
 
 use time_sheet::generate_time_sheet;
@@ -15,7 +15,7 @@ use time_sheet::input::Config;
 
 fn set_env_if_absent<K: AsRef<OsStr>, V: AsRef<OsStr>>(var: K, default: impl FnOnce() -> V) {
     if env::var(var.as_ref()).is_err() {
-        env::set_var(var, default());
+        unsafe { env::set_var(var, default()) };
     }
 }
 

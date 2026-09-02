@@ -4,7 +4,7 @@ use formatx::Template;
 use serde::Deserialize;
 
 use crate::input::toml_input::{self, About, Contract, DynamicEntry, Entry, Mail, RepeatingEvent};
-use crate::time::{Date, Month, Year};
+use crate::time::{Date, DateRangeExt, Month, Year};
 use crate::utils::{self, StrExt};
 
 #[derive(Debug, Clone, Deserialize)]
@@ -63,6 +63,7 @@ impl Global {
         department: &'a str,
     ) -> impl Iterator<Item = Entry> + 'a {
         (Date::first_day(year, month)..=Date::last_day(year, month))
+            .dates()
             // skip dates where the event cannot repeat
             .filter(move |date| can_repeat_on(*date))
             .flat_map(move |date| {

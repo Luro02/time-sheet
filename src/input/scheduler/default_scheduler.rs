@@ -1,9 +1,9 @@
+use crate::input::Month;
+use crate::input::Transfer;
 use crate::input::scheduler::{
     AbsenceScheduler, DailyLimiter, FixedScheduler, MonthScheduler, Scheduler, SchedulerOptions,
     WorkdayScheduler,
 };
-use crate::input::Month;
-use crate::input::Transfer;
 use crate::time::{Date, WorkingDuration};
 use crate::working_duration;
 

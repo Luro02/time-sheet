@@ -1,7 +1,7 @@
 use std::str::FromStr;
 
 use derive_more::Display;
-use serde::{de, ser, Deserialize, Serialize};
+use serde::{Deserialize, Serialize, de, ser};
 
 #[derive(Debug, Copy, Clone, Display)]
 pub enum WorkingArea {

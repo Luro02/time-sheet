@@ -1,5 +1,4 @@
 #![allow(clippy::zero_prefixed_literal)]
-#![feature(step_trait)]
 
 mod latex_generator;
 mod latex_string;

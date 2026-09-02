@@ -50,6 +50,7 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     use crate::date;
+    use crate::time::DateRangeExt;
 
     #[test]
     fn test_default() {
@@ -63,13 +64,7 @@ mod tests {
             expected,
             "{:?} should {}apply on `{}`",
             custom_end,
-            {
-                if expected {
-                    ""
-                } else {
-                    "not "
-                }
-            },
+            { if expected { "" } else { "not " } },
             date
         );
     }
@@ -105,20 +100,20 @@ mod tests {
             .unwrap_or_else(|| start_date.map_or(date!(2021:01:01), |start| start + offset));
 
         // check the range:
-        for date in start..=end {
+        for date in (start..=end).dates() {
             check_applies_on(custom_end, date, true);
         }
 
         if let Some(start) = start_date {
             // check before the start date:
-            for date in (start - offset)..start {
+            for date in ((start - offset)..=(start - 1)).dates() {
                 check_applies_on(custom_end, date, false);
             }
         }
 
         if let Some(end) = end_date {
             // check after the end date:
-            for date in (end + 1)..(end + 1 + offset) {
+            for date in ((end + 1)..=(end + offset)).dates() {
                 check_applies_on(custom_end, date, false);
             }
         }

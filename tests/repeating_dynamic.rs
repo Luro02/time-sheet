@@ -1,7 +1,7 @@
 //! Tests that explicitly set attributes for dynamic entries are not ignored.
 
 use time_sheet::input::toml_input::{self, Global};
-use time_sheet::time::{Date, Month, WeekDay, Year};
+use time_sheet::time::{Date, DateRangeExt, Month, WeekDay, Year};
 use time_sheet::{time_stamp, working_duration};
 
 use pretty_assertions::assert_eq;
@@ -79,6 +79,7 @@ fn test_repeating_dynamic() {
         count,
         Year::new(2022)
             .days_in(Month::August)
+            .dates()
             .filter(|day| day.week_day() == WeekDay::Tuesday)
             .count()
     );

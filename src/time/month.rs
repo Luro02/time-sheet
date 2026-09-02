@@ -1,5 +1,4 @@
 use core::fmt;
-use core::iter::Step;
 
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
@@ -83,39 +82,6 @@ impl TryFrom<usize> for Month {
             .into_iter()
             .find(|month| *month as usize == value)
             .ok_or(InvalidNumberForMonth)
-    }
-}
-
-// TODO: test this?
-impl Step for Month {
-    fn steps_between(start: &Self, end: &Self) -> (usize, Option<usize>) {
-        <usize as Step>::steps_between(&start.as_usize(), &end.as_usize())
-    }
-
-    fn forward_checked(start: Self, count: usize) -> Option<Self> {
-        <usize as Step>::forward_checked(start.as_usize(), count)
-            .map(Self::try_from)?
-            .ok()
-    }
-
-    fn backward_checked(start: Self, count: usize) -> Option<Self> {
-        <usize as Step>::backward_checked(start.as_usize(), count)
-            .map(Self::try_from)?
-            .ok()
-    }
-
-    fn forward_overflowing(start: Self, count: usize) -> (Self, bool) {
-        match Self::forward_checked(start, count) {
-            Some(value) => (value, false),
-            None => (start, true),
-        }
-    }
-
-    fn backward_overflowing(start: Self, count: usize) -> (Self, bool) {
-        match Self::backward_checked(start, count) {
-            Some(value) => (value, false),
-            None => (start, true),
-        }
     }
 }
 

@@ -1,6 +1,6 @@
-use crate::input::strategy::{PeekableStrategy, Strategy};
 use crate::input::Scheduler;
-use crate::time::{Date, WorkingDuration};
+use crate::input::strategy::{PeekableStrategy, Strategy};
+use crate::time::{Date, DateRangeExt, WorkingDuration};
 use crate::{min, working_duration};
 
 #[derive(Clone, Debug, PartialEq)]
@@ -61,15 +61,15 @@ impl WorkSchedule {
         let mut result = Vec::new();
 
         // schedule fixed tasks in advance
-        for date in self.start_date..=self.end_date {
+        for date in (self.start_date..=self.end_date).dates() {
             scheduler.schedule_in_advance(date, fixed_scheduler(date));
         }
 
-        for date in self.start_date..=self.end_date {
+        for date in (self.start_date..=self.end_date).dates() {
             let Some((_, task)) = strategy.peek_task(date) else {
                 continue; // nothing to schedule
-                          // TODO: might be a good idea to ask the strategy if there
-                          // are any tasks left at all and quit if there are none remaining
+                // TODO: might be a good idea to ask the strategy if there
+                // are any tasks left at all and quit if there are none remaining
             };
 
             let mut possible_work_duration = scheduler.has_time_for(date, task.duration());

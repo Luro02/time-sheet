@@ -1,12 +1,12 @@
 use core::fmt;
-use core::iter::Step;
-use core::ops::{Add, AddAssign, Sub, SubAssign};
+use core::iter::FusedIterator;
+use core::ops::{Add, AddAssign, RangeInclusive, Sub, SubAssign};
 use core::str::FromStr;
 
 use serde::Deserialize;
 use thiserror::Error;
 
-use crate::time::{holiday, Month, WeekDay, Year};
+use crate::time::{Month, WeekDay, Year, holiday};
 use crate::utils::StrExt;
 
 #[macro_export]
@@ -104,7 +104,9 @@ impl Date {
         }
     }
 
+    // only used by tests, because `DateIter` advances with `add_days` instead
     #[must_use]
+    #[cfg(test)]
     const fn from_days_since_base_date(days: usize) -> Self {
         let year = Year::from_days_since_base_date(days);
         // NOTE: +1 because the ordinal of the first day of the year is 1 and not 0
@@ -409,31 +411,106 @@ impl fmt::Display for Date {
     }
 }
 
-impl Step for Date {
-    fn steps_between(start: &Self, end: &Self) -> (usize, Option<usize>) {
-        <usize as Step>::steps_between(&start.days_since_base_date(), &end.days_since_base_date())
+/// Iterates over every date in a `RangeInclusive<Date>`.
+///
+/// This is the stable replacement for `<RangeInclusive<Date> as IntoIterator>`,
+/// which is only available behind the nightly `step_trait` feature.
+///
+/// # Examples
+///
+/// ```
+/// # use time_sheet::time::{Date, DateRangeExt};
+/// # use time_sheet::date;
+/// let dates: Vec<Date> = (date!(2022:01:01)..=date!(2022:01:03)).dates().collect();
+///
+/// assert_eq!(
+///     dates,
+///     vec![date!(2022:01:01), date!(2022:01:02), date!(2022:01:03)]
+/// );
+/// ```
+#[derive(Debug, Clone)]
+pub struct DateIter {
+    current: Date,
+    end: Date,
+    done: bool,
+}
+
+impl DateIter {
+    #[must_use]
+    pub fn new(range: RangeInclusive<Date>) -> Self {
+        let (start, end) = range.into_inner();
+
+        Self {
+            current: start,
+            end,
+            // a range where start > end is empty, which `TimeSpanScheduler::empty` relies on
+            done: start > end,
+        }
+    }
+}
+
+impl Iterator for DateIter {
+    type Item = Date;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.done || self.current > self.end {
+            self.done = true;
+            return None;
+        }
+
+        let current = self.current;
+        // never step past `end`, so the largest representable date cannot overflow
+        if current == self.end {
+            self.done = true;
+        } else {
+            self.current = current.add_days(1);
+        }
+
+        Some(current)
     }
 
-    fn forward_checked(start: Self, count: usize) -> Option<Self> {
-        <usize as Step>::forward_checked(start.days_since_base_date(), count)
-            .map(Self::from_days_since_base_date)
-    }
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        if self.done || self.current > self.end {
+            return (0, Some(0));
+        }
 
-    fn backward_checked(start: Self, count: usize) -> Option<Self> {
-        <usize as Step>::backward_checked(start.days_since_base_date(), count)
-            .map(Self::from_days_since_base_date)
+        let remaining = self.end.days_since_base_date() - self.current.days_since_base_date() + 1;
+        (remaining, Some(remaining))
     }
+}
 
-    fn forward_overflowing(start: Self, count: usize) -> (Self, bool) {
-        let (days, overflow) =
-            <usize as Step>::forward_overflowing(start.days_since_base_date(), count);
-        (Self::from_days_since_base_date(days), overflow)
+impl DoubleEndedIterator for DateIter {
+    fn next_back(&mut self) -> Option<Self::Item> {
+        if self.done || self.current > self.end {
+            self.done = true;
+            return None;
+        }
+
+        let end = self.end;
+        if end == self.current {
+            self.done = true;
+        } else {
+            self.end = end.sub_days(1);
+        }
+
+        Some(end)
     }
+}
 
-    fn backward_overflowing(start: Self, count: usize) -> (Self, bool) {
-        let (days, overflow) =
-            <usize as Step>::backward_overflowing(start.days_since_base_date(), count);
-        (Self::from_days_since_base_date(days), overflow)
+impl ExactSizeIterator for DateIter {}
+
+impl FusedIterator for DateIter {}
+
+/// Turns a `RangeInclusive<Date>` into a [`DateIter`].
+pub trait DateRangeExt {
+    /// Iterates over every date in the range.
+    #[must_use]
+    fn dates(self) -> DateIter;
+}
+
+impl DateRangeExt for RangeInclusive<Date> {
+    fn dates(self) -> DateIter {
+        DateIter::new(self)
     }
 }
 
@@ -573,7 +650,7 @@ mod tests {
         assert_eq!(date!(2024:01:01).sub_days(730), date!(2022:01:01));
 
         let start = date!(2020:01:01);
-        for (passed_days, date) in (start..=date!(2024:12:31)).enumerate() {
+        for (passed_days, date) in (start..=date!(2024:12:31)).dates().enumerate() {
             assert_eq!(
                 date.sub_days(passed_days),
                 start,
@@ -594,7 +671,7 @@ mod tests {
 
     #[test]
     fn test_add_sub_identity() {
-        for a in date!(2022:01:01)..=date!(2024:12:31) {
+        for a in (date!(2022:01:01)..=date!(2024:12:31)).dates() {
             for b in 0..=999 {
                 assert_eq!(a.add_days(b).sub_days(b), a);
                 assert_eq!(a.sub_days(b).add_days(b), a);
@@ -608,7 +685,7 @@ mod tests {
         assert_eq!(date!(2022:02:01).ordinal(), 32);
         assert_eq!(date!(2022:02:05).ordinal(), 36);
 
-        for year in Year::new(2020)..=Year::new(3000) {
+        for year in (2020..=3000).map(Year::new) {
             let mut current_ordinal = 0;
             for month in Month::months() {
                 for day in 1..=year.number_of_days_in_month(month) {
@@ -623,7 +700,7 @@ mod tests {
 
     #[test]
     fn test_from_days_since_base_date() {
-        for year in Year::new(2020)..=Year::new(2025) {
+        for year in (2020..=2025).map(Year::new) {
             for month in Month::months() {
                 for day in 1..year.number_of_days_in_month(month) {
                     let date = Date::new(year, month, day).unwrap();
@@ -686,7 +763,7 @@ mod tests {
 
     #[test]
     fn test_week_start_end() {
-        for year in Year::new(2000)..=Year::new(2022) {
+        for year in (2000..=2022).map(Year::new) {
             for month in Month::months() {
                 for (_, days) in iter_weeks(year, month) {
                     let week_start = Date::new(year, month, *days.start()).unwrap();
@@ -733,12 +810,56 @@ mod tests {
 
     #[test]
     fn test_week_number_elaborate() {
-        for year in Year::new(1990)..=Year::new(2030) {
+        for year in (1990..=2030).map(Year::new) {
             for month in Month::months() {
                 for (week_number, week) in iter_weeks(year, month) {
                     test_week_number_value(year, month, week_number, week);
                 }
             }
         }
+    }
+
+    #[test]
+    fn test_date_iter() {
+        let dates: Vec<Date> = (date!(2022:01:01)..=date!(2022:01:05)).dates().collect();
+
+        assert_eq!(
+            dates,
+            vec![
+                date!(2022:01:01),
+                date!(2022:01:02),
+                date!(2022:01:03),
+                date!(2022:01:04),
+                date!(2022:01:05),
+            ]
+        );
+    }
+
+    #[test]
+    fn test_date_iter_len() {
+        let iter = (date!(2022:01:01)..=date!(2022:12:31)).dates();
+
+        assert_eq!(iter.len(), 365);
+        assert_eq!(iter.clone().rev().next(), Some(date!(2022:12:31)));
+        assert_eq!(iter.clone().rev().count(), 365);
+    }
+
+    #[test]
+    fn test_date_iter_single() {
+        let mut iter = (date!(2022:01:01)..=date!(2022:01:01)).dates();
+
+        assert_eq!(iter.len(), 1);
+        assert_eq!(iter.next(), Some(date!(2022:01:01)));
+        assert_eq!(iter.next(), None);
+    }
+
+    /// `TimeSpanScheduler::empty` relies on an inverted range yielding nothing.
+    #[test]
+    fn test_date_iter_empty() {
+        let mut iter = (date!(2022:12:12)..=date!(2022:12:11)).dates();
+
+        assert_eq!(iter.len(), 0);
+        assert_eq!(iter.next(), None);
+        assert_eq!(iter.next_back(), None);
     }
 }

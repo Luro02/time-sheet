@@ -1,12 +1,12 @@
 use log::debug;
-use serde::ser;
 use serde::Serialize;
+use serde::ser;
 
+use crate::input::Task;
 use crate::input::json_input::{Entry, MonthFile};
 use crate::input::scheduler::SchedulerOptions;
 use crate::input::toml_input::{Absence, DynamicEntry, Holiday, Transfer};
-use crate::input::Task;
-use crate::time::{self, Date, TimeSpan, TimeStamp, WorkingDuration, Year};
+use crate::time::{self, Date, DateRangeExt, TimeSpan, TimeStamp, WorkingDuration, Year};
 use crate::{time_stamp, working_duration};
 
 #[derive(Debug, Clone)]
@@ -58,10 +58,11 @@ impl Month {
                 .with_suggested_date(entry_date),
         );
 
-        if let Some((date, span)) = scheduled.first() {
-            if *date == entry_date && *span == entry.time_span() {
-                self.entries.push(entry);
-            }
+        if let Some((date, span)) = scheduled.first()
+            && *date == entry_date
+            && *span == entry.time_span()
+        {
+            self.entries.push(entry);
         }
     }
 
@@ -211,6 +212,7 @@ impl Month {
     ) -> impl Iterator<Item = Date> + '_ {
         self.year()
             .days_in(self.month())
+            .dates()
             .filter(move |date| !self.exceeds_working_duration_on_with(*date, duration))
             .filter(move |date| {
                 // remove all dates where the start + duration conflict with

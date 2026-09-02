@@ -1,5 +1,5 @@
-use serde::de;
 use serde::Deserialize;
+use serde::de;
 
 use crate::time::{Date, TimeSpan, TimeStamp, WorkingDuration};
 use crate::time_stamp;

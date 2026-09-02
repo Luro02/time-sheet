@@ -116,6 +116,7 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     use crate::date;
+    use crate::time::DateRangeExt;
 
     #[test]
     fn test_is_holiday() {
@@ -134,7 +135,7 @@ mod tests {
             date!(2023:12:26),
         ];
 
-        for date in holidays[0]..=holidays[holidays.len() - 1] {
+        for date in (holidays[0]..=holidays[holidays.len() - 1]).dates() {
             if holidays.contains(&date) {
                 assert_eq!(is_holiday(date), true, "date {} should be a holiday", date);
             } else {

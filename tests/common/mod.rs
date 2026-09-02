@@ -1,6 +1,6 @@
+use time_sheet::input::Config;
 use time_sheet::input::json_input::MonthFile;
 use time_sheet::input::toml_input;
-use time_sheet::input::Config;
 use time_sheet::time::WorkingDuration;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -98,8 +98,8 @@ pub fn make_global(working_time: WorkingDuration) -> String {
 
 #[allow(dead_code)]
 pub fn debug_setup() {
-    std::env::set_var("RUST_BACKTRACE", "1");
-    std::env::set_var("RUST_APP_LOG", "trace");
+    unsafe { std::env::set_var("RUST_BACKTRACE", "1") };
+    unsafe { std::env::set_var("RUST_APP_LOG", "trace") };
     color_backtrace::install();
     pretty_env_logger::init_custom_env("RUST_APP_LOG");
 }

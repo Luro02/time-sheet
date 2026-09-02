@@ -2,7 +2,7 @@ use std::ops::Deref;
 use std::str::FromStr;
 
 use derive_more::Display;
-use serde::{de, Deserialize, Serialize};
+use serde::{Deserialize, Serialize, de};
 
 #[derive(Debug, Clone, Display, PartialEq, Serialize)]
 #[display("{}", _0)]

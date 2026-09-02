@@ -68,6 +68,7 @@ mod tests {
     use pretty_assertions::assert_eq;
 
     use crate::date;
+    use crate::time::DateRangeExt;
 
     #[test]
     fn test_repetitions_days() {
@@ -97,7 +98,7 @@ mod tests {
         );
 
         let start = date!(2023:01:01);
-        for date in start..=date!(2024:12:31) {
+        for date in (start..=date!(2024:12:31)).dates() {
             for days in 1..=35 {
                 assert_eq!(
                     RepeatsEvery::new(days, RepeatSpan::Day).repetitions(start, date),
@@ -113,7 +114,7 @@ mod tests {
     fn test_repeats_every_week() {
         let repetition = RepeatsEvery::new(7, RepeatSpan::Day);
 
-        for (passed_days, date) in (date!(2022:01:01)..=date!(2023:12:31)).enumerate() {
+        for (passed_days, date) in (date!(2022:01:01)..=date!(2023:12:31)).dates().enumerate() {
             assert_eq!(
                 repetition.repetitions(date!(2022:01:01), date),
                 passed_days / 7,
