@@ -19,10 +19,10 @@ This App is built on top of [TimeSheetGenerator](https://github.com/kit-sdq/Time
 
 ## Compiling
 
-First clone the repository, keep in mind that this has to be done recursively, because of the submodules:
+First clone the repository:
 
 ```
-$ git clone https://github.com/Luro02/time-sheet --recursive
+$ git clone https://github.com/Luro02/time-sheet
 ```
 
 This program is written in [rust](https://www.rust-lang.org/) and uses nightly features. You have to install the nightly toolchain first.

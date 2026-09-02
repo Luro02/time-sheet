@@ -4,11 +4,11 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use anyhow::Context as _;
+use argh::FromArgs;
 use lettre::message::header::ContentType;
 use lettre::message::{Attachment, SinglePart};
 use lettre::Transport;
 use log::{error, info};
-use seahorse::{App, Command, Context, Flag};
 
 use time_sheet::generate_time_sheet;
 use time_sheet::input::Config;
@@ -30,79 +30,58 @@ fn main() {
     }
 }
 
-mod seahorse_exts {
-    use core::fmt;
-    use std::path::PathBuf;
-
-    use anyhow::Context as _;
-    use log::error;
-    use seahorse::{App, Command, Context};
-
-    type TryAction<E> = fn(_: &Context) -> Result<(), E>;
-
-    pub trait ErrorLike: Send + Sync + fmt::Debug + 'static {}
-
-    impl<E: Send + Sync + fmt::Debug + 'static> ErrorLike for E {}
-
-    pub trait TryActionExt {
-        #[must_use]
-        fn try_action<E>(self, action: TryAction<E>) -> Self
-        where
-            E: ErrorLike;
-    }
-
-    impl TryActionExt for App {
-        fn try_action<E>(self, action: TryAction<E>) -> Self
-        where
-            E: ErrorLike,
-        {
-            self.action(move |context: &Context| {
-                if let Err(e) = action(context) {
-                    error!("{:?}", e);
-                    ::std::process::exit(1);
-                }
-            })
-        }
-    }
-
-    impl TryActionExt for Command {
-        fn try_action<E>(self, action: TryAction<E>) -> Self
-        where
-            E: ErrorLike,
-        {
-            self.action(move |context: &Context| {
-                if let Err(e) = action(context) {
-                    error!("{:?}", e);
-                    ::std::process::exit(1);
-                }
-            })
-        }
-    }
-
-    pub trait ContextExt {
-        fn context(&self) -> &Context;
-
-        fn required_string_flag(&self, name: &str) -> Result<String, anyhow::Error> {
-            self.context()
-                .string_flag(name)
-                .with_context(|| anyhow::anyhow!("missing required flag \"{}\"", name))
-        }
-
-        fn required_path_flag(&self, name: &str) -> Result<PathBuf, anyhow::Error> {
-            self.required_string_flag(name)
-                .map(PathBuf::from)
-                .with_context(|| anyhow::anyhow!("missing required flag \"{}\"", name))
-        }
-    }
-
-    impl ContextExt for Context {
-        fn context(&self) -> &Context {
-            self
-        }
-    }
+/// A time sheet generator for the german university KIT
+#[derive(FromArgs)]
+struct TopArgs {
+    #[argh(subcommand)]
+    command: SubCommands,
 }
 
-use seahorse_exts::{ContextExt, TryActionExt};
+#[derive(FromArgs)]
+#[argh(subcommand)]
+enum SubCommands {
+    Make(MakeArgs),
+    Send(SendArgs),
+}
+
+/// Makes a time sheet from the given files.
+#[derive(FromArgs)]
+#[argh(subcommand, name = "make")]
+struct MakeArgs {
+    /// path to the global file.
+    #[argh(option)]
+    global: PathBuf,
+    /// path to the month file.
+    #[argh(option)]
+    month: PathBuf,
+    /// path to the output folder. default: `<path to month>/pdfs/`
+    #[argh(option)]
+    output: Option<PathBuf>,
+}
+
+/// Makes a time sheet from the given files and sends it to the email.
+#[derive(FromArgs)]
+#[argh(subcommand, name = "send")]
+struct SendArgs {
+    /// the title of the email. `{year}` and `{month}` will be replaced with the year/month.
+    #[argh(option)]
+    subject: String,
+    /// path to the global file.
+    #[argh(option)]
+    global: PathBuf,
+    /// path to the month file.
+    #[argh(option)]
+    month: PathBuf,
+    /// path to the output folder. default: `<path to month>/pdfs/`
+    #[argh(option)]
+    output: Option<PathBuf>,
+    /// keeps the pdf file after sending the email.
+    #[argh(switch)]
+    keep_pdf: bool,
+    /// recipient of the email.
+    #[argh(positional)]
+    recipient: String,
+}
 
 fn build_config(global: &Path, month: &Path, output: &Path) -> anyhow::Result<Config> {
     let mut config = Config::try_from_toml_files(month, global)?;
@@ -116,20 +95,18 @@ fn build_config(global: &Path, month: &Path, output: &Path) -> anyhow::Result<Co
     Ok(config)
 }
 
-fn make_extract_context_flags(context: &Context) -> anyhow::Result<(PathBuf, PathBuf, PathBuf)> {
-    let global = context.required_path_flag("global")?;
-    let month = context.required_path_flag("month")?;
-
+fn resolve_paths(
+    global: PathBuf,
+    month: PathBuf,
+    output: Option<PathBuf>,
+) -> anyhow::Result<(PathBuf, PathBuf, PathBuf)> {
     let workspace = dunce::canonicalize(&month)
         .map_err(|e| anyhow::anyhow!(e))?
         .parent()
         .ok_or_else(|| anyhow::anyhow!("month should have a parent directory"))?
         .to_path_buf();
 
-    let output = context
-        .required_path_flag("output")
-        .ok()
-        .unwrap_or_else(|| workspace.join("pdfs/"));
+    let output = output.unwrap_or_else(|| workspace.join("pdfs/"));
 
     Ok((global, month, output))
 }
@@ -207,69 +184,21 @@ fn make(config: &Config) -> anyhow::Result<()> {
 }
 
 fn run() -> anyhow::Result<()> {
-    let args: Vec<String> = env::args().collect();
+    let TopArgs { command } = argh::from_env();
 
-    let make_command = Command::new("make")
-        .usage(format!("{} make [args]", args[0]))
-        .description("Makes a time sheet from the given files.")
-        .flag(
-            Flag::new("global", seahorse::FlagType::String).description("Path to the global file."),
-        )
-        .flag(Flag::new("month", seahorse::FlagType::String).description("Path to the month file."))
-        .flag(
-            Flag::new("output", seahorse::FlagType::String).description(
-                "[optional] Path to the output folder. Default: `<path to month>/pdfs/`",
-            ),
-        )
-        .try_action(|context: &Context| {
-            let (global, month, output) = make_extract_context_flags(context)?;
+    match command {
+        SubCommands::Make(args) => {
+            let (global, month, output) = resolve_paths(args.global, args.month, args.output)?;
             let config = build_config(&global, &month, &output)?;
             make(&config)
-        });
-
-    let send_command = Command::new("send")
-        .usage(format!("{} send [args] recipient@example.com", args[0]))
-        .description("Makes a time sheet from the given files and sends it to the email.")
-        .flag(
-            Flag::new("subject", seahorse::FlagType::String).description("The title of the email. `{year}` and `{month}` will be replaced with the year/month."),
-        )
-        .flag(
-            Flag::new("global", seahorse::FlagType::String).description("Path to the global file."),
-        )
-        .flag(Flag::new("month", seahorse::FlagType::String).description("Path to the month file."))
-        .flag(
-            Flag::new("output", seahorse::FlagType::String).description(
-                "[optional] Path to the output folder. Default: `<path to month>/pdfs/`",
-            ),
-        )
-        .flag(Flag::new("keep-pdf", seahorse::FlagType::Bool).description("[optional] Keeps the pdf file after sending the email. Default: false"))
-        .try_action(|context: &Context| {
-            let (global, month, output) = make_extract_context_flags(context)?;
+        }
+        SubCommands::Send(args) => {
+            let (global, month, output) = resolve_paths(args.global, args.month, args.output)?;
             let config = build_config(&global, &month, &output)?;
 
-            let subject = context.required_string_flag("subject")?;
+            info!("recipient: \"{}\"", args.recipient);
 
-            if context.args.len() != 1 {
-                return Err(anyhow::anyhow!("missing recipient or too many arguments"));
-            }
-
-            let keep_pdf = context.bool_flag("keep-pdf");
-
-            let recipient = &context.args[0];
-            info!("recipient: \"{}\"", recipient);
-
-            send(&config, recipient, &subject, keep_pdf)
-        });
-
-    let app = App::new(env!("CARGO_PKG_NAME"))
-        .description(env!("CARGO_PKG_DESCRIPTION"))
-        .author(env!("CARGO_PKG_AUTHORS"))
-        .version(env!("CARGO_PKG_VERSION"))
-        .usage(format!("{} [args]", args[0]))
-        .command(make_command)
-        .command(send_command);
-
-    app.run(args);
-
-    Ok(())
+            send(&config, &args.recipient, &args.subject, args.keep_pdf)
+        }
+    }
 }
