@@ -203,8 +203,6 @@ mod tests {
 
     use pretty_assertions::assert_eq;
 
-    use crate::working_duration;
-
     #[test]
     fn test_add_duration() {
         // 12:23:42

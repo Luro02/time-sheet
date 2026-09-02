@@ -1,10 +1,4 @@
-#![feature(
-    never_type,
-    step_trait,
-    trait_alias,
-    associated_type_defaults,
-    const_swap
-)]
+#![feature(step_trait)]
 
 mod latex_generator;
 mod latex_string;

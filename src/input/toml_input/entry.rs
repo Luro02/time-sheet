@@ -116,7 +116,6 @@ impl<'de> MapEntry<'de> for Entry {
     type Key = Key;
     type Value = Entry;
 
-    #[must_use]
     fn new(key: Self::Key, value: Self::Value) -> Self {
         let mut entry = value;
         entry.key = key;

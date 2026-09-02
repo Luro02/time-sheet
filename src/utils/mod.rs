@@ -1,4 +1,3 @@
-use std::ffi::OsStr;
 use std::fs;
 use std::io;
 use std::io::{BufReader, Read};
@@ -139,33 +138,9 @@ pub fn create_dir_all(path: impl AsRef<Path>) -> io::Result<()> {
     })
 }
 
-pub trait PathExt {
-    #[must_use]
-    fn has_extension<E>(&self, extension: E) -> bool
-    where
-        for<'a> &'a OsStr: PartialEq<E>;
-}
-
-impl PathExt for Path {
-    fn has_extension<E>(&self, extension: E) -> bool
-    where
-        for<'a> &'a OsStr: PartialEq<E>,
-    {
-        self.extension().map_or(false, |ext| ext == extension)
-    }
-}
-
 pub trait ArrayExt<T, const N: usize> {
     #[must_use]
     fn init_with(f: impl FnMut(usize) -> T) -> [T; N];
-
-    #[must_use]
-    fn init(value: T) -> [T; N]
-    where
-        T: Clone,
-    {
-        Self::init_with(|_| value.clone())
-    }
 }
 
 impl<T, const N: usize> ArrayExt<T, N> for [T; N] {

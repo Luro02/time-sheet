@@ -1,5 +1,3 @@
-#![feature(never_type, step_trait, trait_alias, associated_type_defaults)]
-
 use std::env;
 use std::ffi::OsStr;
 use std::fs;

@@ -302,6 +302,20 @@ impl Step for Year {
     fn backward_checked(start: Self, count: usize) -> Option<Self> {
         <usize as Step>::backward_checked(start.as_usize(), count).map(Year::new)
     }
+
+    fn forward_overflowing(start: Self, count: usize) -> (Self, bool) {
+        match Self::forward_checked(start, count) {
+            Some(value) => (value, false),
+            None => (start, true),
+        }
+    }
+
+    fn backward_overflowing(start: Self, count: usize) -> (Self, bool) {
+        match Self::backward_checked(start, count) {
+            Some(value) => (value, false),
+            None => (start, true),
+        }
+    }
 }
 
 impl From<usize> for Year {

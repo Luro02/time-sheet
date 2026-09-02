@@ -103,6 +103,20 @@ impl Step for Month {
             .map(Self::try_from)?
             .ok()
     }
+
+    fn forward_overflowing(start: Self, count: usize) -> (Self, bool) {
+        match Self::forward_checked(start, count) {
+            Some(value) => (value, false),
+            None => (start, true),
+        }
+    }
+
+    fn backward_overflowing(start: Self, count: usize) -> (Self, bool) {
+        match Self::backward_checked(start, count) {
+            Some(value) => (value, false),
+            None => (start, true),
+        }
+    }
 }
 
 #[cfg(test)]

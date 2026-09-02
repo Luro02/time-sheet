@@ -68,8 +68,8 @@ impl WorkSchedule {
         for date in self.start_date..=self.end_date {
             let Some((_, task)) = strategy.peek_task(date) else {
                 continue; // nothing to schedule
-                // TODO: might be a good idea to ask the strategy if there
-                // are any tasks left at all and quit if there are none remaining
+                          // TODO: might be a good idea to ask the strategy if there
+                          // are any tasks left at all and quit if there are none remaining
             };
 
             let mut possible_work_duration = scheduler.has_time_for(date, task.duration());

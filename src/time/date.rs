@@ -423,6 +423,18 @@ impl Step for Date {
         <usize as Step>::backward_checked(start.days_since_base_date(), count)
             .map(Self::from_days_since_base_date)
     }
+
+    fn forward_overflowing(start: Self, count: usize) -> (Self, bool) {
+        let (days, overflow) =
+            <usize as Step>::forward_overflowing(start.days_since_base_date(), count);
+        (Self::from_days_since_base_date(days), overflow)
+    }
+
+    fn backward_overflowing(start: Self, count: usize) -> (Self, bool) {
+        let (days, overflow) =
+            <usize as Step>::backward_overflowing(start.days_since_base_date(), count);
+        (Self::from_days_since_base_date(days), overflow)
+    }
 }
 
 fn parse_or_err(input: &str) -> Result<usize, InvalidDate> {
