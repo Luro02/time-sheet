@@ -31,8 +31,7 @@ impl<Id> FirstComeFirstServe<Id> {
             .iter()
             .enumerate()
             .rev()
-            .filter(|(_, (_, t))| t.applies_on(date) && t.has_filter())
-            .next()
+            .find(|(_, (_, t))| t.applies_on(date) && t.has_filter())
         {
             return Some(pos);
         }

@@ -58,7 +58,7 @@ impl Month {
                 .with_suggested_date(entry_date),
         );
 
-        if let Some((date, span)) = scheduled.get(0) {
+        if let Some((date, span)) = scheduled.first() {
             if *date == entry_date && *span == entry.time_span() {
                 self.entries.push(entry);
             }
@@ -215,7 +215,7 @@ impl Month {
             .filter(move |date| {
                 // remove all dates where the start + duration conflict with
                 // an existing entry
-                start.map_or(true, |start| {
+                start.is_none_or(|start| {
                     !self.conflicts_with_existing_entry(
                         *date,
                         TimeSpan::new(start, start + duration),

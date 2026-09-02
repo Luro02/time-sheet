@@ -20,12 +20,10 @@ impl MonthScheduler {
     ) -> [TimeSpanScheduler; 6] {
         <[TimeSpanScheduler; 6]>::init_with(|mut week_number| {
             week_number += 1;
-            year.days_in_week(month, week_number).map_or_else(
-                || TimeSpanScheduler::empty(),
-                |days| {
+            year.days_in_week(month, week_number)
+                .map_or_else(TimeSpanScheduler::empty, |days| {
                     TimeSpanScheduler::new(*days.start(), *days.end(), available_time(week_number))
-                },
-            )
+                })
         })
     }
 
@@ -70,7 +68,7 @@ impl MonthScheduler {
             &mut distribution,
         );
 
-        let week_with_remainder = (year.number_of_weeks_in_month(month) + 1) / 2;
+        let week_with_remainder = year.number_of_weeks_in_month(month).div_ceil(2);
 
         Self {
             weeks: Self::make_scheduler(year, month, |week_number| {

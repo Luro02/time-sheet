@@ -20,7 +20,7 @@ impl HolidayEntry {
 ///
 /// The algorithm is based on <https://en.wikipedia.org/wiki/Date_of_Easter#Anonymous_Gregorian_algorithm>
 const fn is_easter_sunday(date: Date) -> bool {
-    let year = date.year().as_usize() as usize;
+    let year = date.year().as_usize();
 
     let a = year % 19;
     let b = year / 100;

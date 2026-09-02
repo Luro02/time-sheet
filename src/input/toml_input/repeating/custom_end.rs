@@ -20,7 +20,7 @@ impl CustomEnd {
     }
 
     fn is_after_start(&self, date: Date) -> bool {
-        self.start().map_or(true, |start| start <= date)
+        self.start().is_none_or(|start| start <= date)
     }
 
     #[must_use]

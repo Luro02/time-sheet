@@ -50,7 +50,8 @@ impl Year {
 
     /// A year that is not a leap year is a common year.
     pub const fn is_common_year(&self) -> bool {
-        self.as_usize() % 4 != 0 || (self.as_usize() % 100 == 0 && self.as_usize() % 400 != 0)
+        !self.as_usize().is_multiple_of(4)
+            || (self.as_usize().is_multiple_of(100) && !self.as_usize().is_multiple_of(400))
     }
 
     /// A leap year is a calendar year that contains an additional day added to February, so
@@ -58,7 +59,8 @@ impl Year {
     #[must_use]
     pub const fn is_leap_year(&self) -> bool {
         // https://en.wikipedia.org/wiki/Leap_year#Algorithm
-        !self.is_common_year() && (self.as_usize() % 100 != 0 || self.as_usize() % 400 == 0)
+        !self.is_common_year()
+            && (!self.as_usize().is_multiple_of(100) || self.as_usize().is_multiple_of(400))
     }
 
     #[must_use]

@@ -52,7 +52,7 @@ where
         let mut result = self.strategy.to_remaining();
 
         if let Some((id, task)) = self.peeked.as_ref() {
-            result.push((id.clone(), task.clone()));
+            result.push((id.clone(), *task));
         }
 
         result

@@ -95,7 +95,7 @@ impl<'a> LatexGenerator<'a> {
                     prefix,
                     date = signature.date().formatted("{day}.{month}.{year}"),
                     width = signature.width(),
-                    signature = &new_path.to_string_lossy(),
+                    signature = new_path.to_string_lossy(),
                 ),
             );
         }
@@ -127,7 +127,7 @@ impl<'a> LatexGenerator<'a> {
                 //
                 new_path,
                 &utils::read(signature.path())
-                    .with_context(|| format!("Failed to read signature file"))?,
+                    .with_context(|| "Failed to read signature file".to_string())?,
             )?;
         }
 

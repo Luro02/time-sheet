@@ -57,7 +57,6 @@ impl ConfigBuilder {
         self
     }
 
-    #[must_use]
     pub fn build(self) -> anyhow::Result<Config> {
         let default_file_name = PathBuf::from(self.global.resolve_output(&self.month));
 
@@ -147,7 +146,7 @@ impl ConfigBuilder {
                 }
             },
             output,
-            preserve_dir: preserve_dir,
+            preserve_dir,
             latex_mk_path: self.global.latex_mk_path().map(|v| v.to_path_buf()),
         })
     }

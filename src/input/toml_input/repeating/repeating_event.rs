@@ -73,7 +73,7 @@ impl RepeatingKind {
 enum EventKind {
     Dynamic {
         #[serde(flatten)]
-        entry: DynamicEntry,
+        entry: Box<DynamicEntry>,
     },
     Normal {
         #[serde(default)]
@@ -139,7 +139,7 @@ impl RepeatingEvent {
 
         if let EventKind::Dynamic { entry } = &self.event_kind {
             // update the action of the dynamic entry
-            Some(entry.clone())
+            Some(*entry.clone())
         } else {
             None
         }
@@ -207,7 +207,7 @@ impl<'de> MapEntry<'de> for RepeatingEvent {
     fn new(key: Self::Key, mut value: Self::Value) -> Self {
         match &mut value.event_kind {
             EventKind::Dynamic { entry } => {
-                *entry = DynamicEntry::new(key, entry.clone());
+                **entry = DynamicEntry::new(key, *entry.clone());
             }
             EventKind::Normal { action, .. } => {
                 *action = key;

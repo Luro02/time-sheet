@@ -146,7 +146,7 @@ fn send(config: &Config, recipient: &str, subject: &str, keep_pdf: bool) -> anyh
             &format!("{:02}", config.month().month().as_usize()),
         );
 
-    make(&config)?;
+    make(config)?;
 
     let email = mail
         .builder()

@@ -30,7 +30,7 @@ impl<T, const N: usize> ArrayVec<T, N> {
     pub const fn pop(&mut self) -> Option<T> {
         let mut result = None;
 
-        if self.len() > 0 {
+        if !self.is_empty() {
             self.len -= 1;
             mem::swap(&mut self.data[self.len()], &mut result);
         }
