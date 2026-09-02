@@ -12,7 +12,7 @@ impl FromStr for LatexString {
     type Err = !;
 
     fn from_str(value: &str) -> Result<Self, Self::Err> {
-        Ok(LatexString(v_latexescape::escape(value).to_string()))
+        Ok(LatexString(v_latexescape::escape_fmt(value).to_string()))
     }
 }
 

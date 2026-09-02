@@ -38,7 +38,7 @@ impl<'a> LatexGenerator<'a> {
             if let Some(dir) = self.config.preserve_dir() {
                 dir.to_path_buf()
             } else {
-                TempDir::new()?.into_path()
+                TempDir::new()?.keep()
             }
         };
 

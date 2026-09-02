@@ -100,12 +100,8 @@ impl Global {
                     )
                 },
                 |f| {
-                    let mut template = f
-                        .parse::<Template>()
+                    let template = Template::new(f)
                         .expect("Failed to parse the template string for the output filename");
-
-                    template.replace("year", month.general().year().to_string());
-                    template.replace("month", month.general().month().to_string());
                     let [Some(first_name), Some(last_name)] = self.about().name().split_exact(" ")
                     else {
                         panic!(
@@ -113,11 +109,17 @@ impl Global {
                             self.about().name()
                         );
                     };
-                    template.replace("first_name", first_name);
-                    template.replace("last_name", last_name);
+
+                    let year = month.general().year();
+                    let month_number = month.general().month();
 
                     template
-                        .text()
+                        .render()
+                        .named("year", &year)
+                        .named("month", &month_number)
+                        .named("first_name", first_name)
+                        .named("last_name", last_name)
+                        .finish()
                         .expect("Failed to format the output filename")
                 },
             );
